@@ -1,0 +1,18 @@
+from typing import Dict
+import forallpeople as si
+from .data_models import Material, BoltGrade
+
+si.environment('structural', top_level=False)
+
+MATERIALS: Dict[str, Material] = {
+    "a36": Material(Fy=36.0 * si.ksi, Fu=58.0 * si.ksi, E=29000.0 * si.ksi),
+    "a572_gr50": Material(Fy=50.0 * si.ksi, Fu=65.0 * si.ksi, E=29000.0 * si.ksi),
+    "a992": Material(Fy=50.0 * si.ksi, Fu=65.0 * si.ksi, E=29000.0 * si.ksi),
+}
+
+BOLT_GRADES: Dict[str, BoltGrade] = {
+    "a325_n": BoltGrade(Fnt=90.0 * si.ksi, Fnv=54.0 * si.ksi), # Threads included
+    "a325_x": BoltGrade(Fnt=90.0 * si.ksi, Fnv=68.0 * si.ksi), # Threads excluded
+    "a490_n": BoltGrade(Fnt=113.0 * si.ksi, Fnv=68.0 * si.ksi), # Threads included
+    "a490_x": BoltGrade(Fnt=113.0 * si.ksi, Fnv=84.0 * si.ksi), # Threads excluded
+}
