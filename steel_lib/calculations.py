@@ -63,7 +63,7 @@ class TensileYieldingCalculator:
     def __init__(self, member: Any):
         self.member = member
         self.Fy = self.member.Fy
-        self.Ag = self.member.area * si.inch**2
+        self.Ag = self.member.area
         self.loading_condition = getattr(self.member, 'loading_condition', 1)
 
     def calculate_capacity(self, resistance_factor: float = 0.9, debug: bool = False) -> float:
@@ -101,15 +101,15 @@ class TensileRuptureCalculator:
         return 1 - x_bar / l
 
     def _calculate_anet_area(self):
-        t = self.member.t * si.inch
+        t = self.member.t
         S_c = self.connection.column_spacing
         N_c = self.connection.n_columns
         dbolt = self.connection.bolt_diameter
         l = S_c * (N_c - 1)
-        x_bar = self.member.x * si.inch
+        x_bar = self.member.x
         Ubs = self._ubs_angle(x_bar=x_bar, l=l)
-        Ag = self.member.area * si.inch**2
-        dhole = dbolt + 2 / 16 * si.inch
+        Ag = self.member.area
+        dhole = dbolt + (1/8) * si.inch
         An = Ag - dhole * self.connection.n_rows * t
         return An * Ubs, Ubs
 
@@ -158,7 +158,7 @@ class BlockShearCalculator:
 
         # CORRECTED: _get_member_thickness now always returns a unit-aware value
         self.thickness = thickness if thickness is not None else self._get_member_thickness()
-        self.bolt_hole_diameter = self.connection.bolt_diameter + (2/16 * si.inch)
+        self.bolt_hole_diameter = self.connection.bolt_diameter + (1/8) * si.inch
 
         if self.loading_orientation == "Shear" or self.member.Type == "L":
             self.failure_pattern = "L"
@@ -249,62 +249,6 @@ class BlockShearCalculator:
 
         return design_capacity
 
-def lc_outer(connection_configuration,loading):
-  if loading == "Axial":
-    spacing = connection_configuration.column_spacing
-    edge_dist = connection_configuration.edge_distance_horizontal
-  else:
-    spacing = connection_configuration.row_spacing
-    edge_dist = connection_configuration.edge_distance_vertical
-
-  dbolt_hole = connection_configuration.bolt_diameter + 1/16 * si.inch
-
-  return min(spacing,edge_dist) - 0.5 *(dbolt_hole)
-
-def lc_inner(connection_configuration,loading):
-  if loading == "Axial":
-    spacing = connection_configuration.column_spacing
-  else:
-    spacing = connection_configuration.row_spacing
-
-
-  dbolt_hole = connection_configuration.bolt_diameter + 1/16 * si.inch
-
-  return  spacing - 1 *(dbolt_hole)
-
-
-def boltbearing(member,connection_configuration,resistance_factor=0.75,loading = "Axial"):
-  if loading == "Axial":
-    rows = connection_configuration.n_columns
-    cols = connection_configuration.n_rows
-  else:
-    rows = connection_configuration.n_rows
-    cols = connection_configuration.n_columns
-  loading_condition = member.loading_condition
-  Fu = member.Fu
-  t = member.t
-  dbolt = connection_configuration.bolt_diameter
-
-  lc_out = lc_outer(connection_configuration,"Axial")
-  lc_in = lc_inner(connection_configuration,"Axial")
-  shear_checker = BoltShearCalculator(connection=connection_configuration)
-  double_shear_capacity = shear_checker.calculate_capacity(
-      number_of_shear_planes=2,
-      debug=True
-  )
-  rtearout_inn = 1.2*Fu*lc_in*t*resistance_factor
-  rtearout_out = 1.2*Fu*lc_out*t*resistance_factor
-  print(lc_in)
-  bearing_bolt = 2.4 * dbolt * t * Fu * resistance_factor
-  print(dbolt,t,Fu)
-  print(rtearout_inn,double_shear_capacity,bearing_bolt)
-  print(rtearout_out,double_shear_capacity,bearing_bolt)
-  r_innerbolt = min(bearing_bolt,rtearout_inn,double_shear_capacity)
-  r_outerbolt = min(bearing_bolt,rtearout_out,double_shear_capacity)
-  print(r_innerbolt)
-  print(r_outerbolt)
-  return (r_innerbolt*(rows -1) + r_outerbolt) * cols
-
 class ConnectionCapacityCalculator:
     """
     Calculates the governing bolt capacity for an entire connection, considering
@@ -319,10 +263,10 @@ class ConnectionCapacityCalculator:
         self.Fu = self.member.Fu
         self.thickness = self._get_member_thickness()
         self.bolt_diameter = self.connection.bolt_diameter
-        self.bolt_diameter_nominal = self.connection.bolt_diameter + 1/16 * si.inch
+        self.bolt_diameter_nominal = self.connection.bolt_diameter + (1/16) * si.inch
 
         # Per AISC, standard hole diameter is bolt diameter + 1/8"
-        self.hole_diameter = self.bolt_diameter + (1/8 * si.inch)
+        self.hole_diameter = self.connection.bolt_diameter + (1/8) * si.inch
 
         # Determine geometry based on loading orientation (DRY principle)
         if self.loading_orientation == "Axial":
@@ -341,14 +285,14 @@ class ConnectionCapacityCalculator:
         Determines thickness from various member types and ensures it has units.
         """
         if isinstance(self.member, Plate):
-            # For Plate, .t already has units
+            # For Plate, .t should have units from the data model
             return self.member.t
         elif hasattr(self.member, 't'): # For steelpy L-shapes
-            # Steelpy's .t is a float; we must add units.
-            return self.member.t * si.inch
+            # Assuming factory now provides units
+            return self.member.t
         elif hasattr(self.member, 'tw'): # For steelpy W-shape webs
-            # Steelpy's .tw is a float; we must add units.
-            return self.member.tw * si.inch
+            # Assuming factory now provides units
+            return self.member.tw
         raise AttributeError("Member has no recognizable thickness attribute.")
 
     def _calculate_lc_inner(self) -> float:

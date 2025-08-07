@@ -67,17 +67,17 @@ if __name__ == "__main__":
     axial = loads_dict["axial"]
     moment = loads_dict["moment"]
 
-    # shear_checker = BoltShearCalculator(connection=gusset_connection)
-    # double_shear_capacity = shear_checker.calculate_capacity(
-    #     number_of_shear_planes=2,
-    #     debug=False
-    # )
-    # tensile_yield_checker = TensileYieldingCalculator(member=bracing)
-    # brace_tensile_yield_capacity = tensile_yield_checker.calculate_capacity(debug=False)
-    # brace_tensile_yield_dcr = check_dcr(capacity=brace_tensile_yield_capacity, demand=axial)
-    # tensile_rupture_checker = TensileRuptureCalculator(member=bracing, connection=gusset_connection)
-    # brace_tensile_rupture_capacity = tensile_rupture_checker.calculate_capacity(debug=False)
-    # brace_tensile_rupture_dcr = check_dcr(capacity=brace_tensile_rupture_capacity, demand=axial)
+    shear_checker = BoltShearCalculator(connection=gusset_connection)
+    double_shear_capacity = shear_checker.calculate_capacity(
+        number_of_shear_planes=2,
+        debug=False
+    )
+    tensile_yield_checker = TensileYieldingCalculator(member=bracing)
+    brace_tensile_yield_capacity = tensile_yield_checker.calculate_capacity(debug=False)
+    brace_tensile_yield_dcr = check_dcr(capacity=brace_tensile_yield_capacity, demand=axial)
+    tensile_rupture_checker = TensileRuptureCalculator(member=bracing, connection=gusset_connection)
+    brace_tensile_rupture_capacity = tensile_rupture_checker.calculate_capacity(debug=False)
+    brace_tensile_rupture_dcr = check_dcr(capacity=brace_tensile_rupture_capacity, demand=axial)
 
     gusset_connection_main = BoltConfiguration(
         row_spacing=3.0 * si.inch, column_spacing=3.0 * si.inch, n_rows=2, n_columns=7,
@@ -88,19 +88,19 @@ if __name__ == "__main__":
 
 
     # # --- 2. Instantiate the Calculator ---
-    # # Check the capacity for the bracing member in an axial loading scenario
-    # connection_checker = ConnectionCapacityCalculator(
-    #     member=gusset_plate,
-    #     connection=gusset_connection_main,
-    #     loading_orientation="Axial"
-    # )
+    # Check the capacity for the bracing member in an axial loading scenario
+    connection_checker = ConnectionCapacityCalculator(
+        member=gusset_plate,
+        connection=gusset_connection_main,
+        loading_orientation="Axial"
+    )
 
     # # --- 3. Run the Calculation ---
-    # # Assume the connection is in double shear (e.g., gusset plate between two angles)
-    # total_capacity = connection_checker.calculate_capacity(
-    #     number_of_shear_planes=2,
-    #     debug=True
-    # )
+    # Assume the connection is in double shear (e.g., gusset plate between two angles)
+    total_capacity = connection_checker.calculate_capacity(
+        number_of_shear_planes=2,
+        debug=True
+    )
 
 
     u_checker = BlockShearCalculator(member=gusset_plate, connection=gusset_connection_main, loading_orientation="Axial")
@@ -108,7 +108,7 @@ if __name__ == "__main__":
 
 
     # The thickness of L8X6X1 is 1.0 inch.
-    # l_checker = BlockShearCalculator(
-    #     member=bracing, connection=gusset_connection_main, loading_orientation="Axial", loading_condition=2
-    # )
-    # l_capacity = l_checker.calculate_capacity(debug=True)
+    l_checker = BlockShearCalculator(
+        member=bracing, connection=gusset_connection_main, loading_orientation="Axial", loading_condition=2
+    )
+    l_capacity = l_checker.calculate_capacity(debug=True)

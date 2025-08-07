@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, Any
 import forallpeople as si
 
 si.environment('structural', top_level=False)
@@ -7,9 +7,9 @@ si.environment('structural', top_level=False)
 @dataclass(frozen=True)
 class Material:
     """Represents the engineering properties of a steel material."""
-    Fy: float
-    Fu: float
-    E: float
+    Fy: si.ksi
+    Fu: si.ksi
+    E: si.ksi
 
 @dataclass
 class Plate:
@@ -17,43 +17,43 @@ class Plate:
     Represents a custom plate member. Includes loading_condition as an
     intrinsic property, defaulting to 1.
     """
-    t: float
+    t: si.inch
     material: Material
     loading_condition: int = 1
-    length: Optional[float] = None
-    width: Optional[float] = None
+    length: Any = None
+    width: Any = None
     Type: str = "Plate"
 
     @classmethod
     def create_plate_member(
-        cls, t: float, material, loading_condition: int = 1,
+        cls, t: si.inch, material, loading_condition: int = 1,
     ) -> "Plate":
         """Creates a custom Plate member."""
         return cls(t=t, material=material, loading_condition=loading_condition)
 
     @property
-    def Fy(self) -> float: return self.material.Fy
+    def Fy(self) -> si.ksi: return self.material.Fy
     @property
-    def Fu(self) -> float: return self.material.Fu
+    def Fu(self) -> si.ksi: return self.material.Fu
     @property
-    def E(self) -> float: return self.material.E
+    def E(self) -> si.ksi: return self.material.E
 
 @dataclass(frozen=True)
 class BoltGrade:
     """Represents the nominal strength properties of a bolt material."""
-    Fnt: float  # Nominal tensile stress
-    Fnv: float  # Nominal shear stress
+    Fnt: si.ksi  # Nominal tensile stress
+    Fnv: si.ksi  # Nominal shear stress
 
 @dataclass
 class BoltConfiguration:
     """Defines the geometry and properties of a bolted connection."""
-    row_spacing: float
-    column_spacing: float
+    row_spacing: si.inch
+    column_spacing: si.inch
     n_rows: int
     n_columns: int
-    edge_distance_vertical: float
-    edge_distance_horizontal: float
-    bolt_diameter: float
+    edge_distance_vertical: si.inch
+    edge_distance_horizontal: si.inch
+    bolt_diameter: si.inch
     bolt_grade: BoltGrade # Link to the BoltGrade object
     material: Material
 from steelpy import aisc
