@@ -1,9 +1,15 @@
-from steelpy import aisc
+import math
 import forallpeople as si
-from typing import Any, Type
+from steelpy import aisc
 
-from steel_lib.data_models import Plate, BoltConfiguration, SteelpyMemberFactory
-from steel_lib.materials import MATERIALS, BOLT_GRADES
+from steel_lib.data_models import (
+    Plate,
+    BoltConfiguration,
+    SteelpyMemberFactory,
+    WeldConfiguration,
+    PlateDimensions,
+)
+from steel_lib.materials import MATERIALS, BOLT_GRADES, WELD_ELECTRODES
 from steel_lib.calculations import (
     BoltShearCalculator,
     check_dcr,
@@ -11,104 +17,137 @@ from steel_lib.calculations import (
     ConnectionCapacityCalculator,
     TensileYieldingCalculator,
     TensileRuptureCalculator,
+    TensileYieldWhitmore,
+    CompressionBucklingCalculator,
+    UFMCalculator,
+    PlateTensileYieldingCalculator,
+    WebLocalYieldingCalculator,
 )
 
+# Set up the unit system
 si.environment('structural', top_level=False)
 
-if __name__ == "__main__":
-    dbolt = 7/8 * si.inch
+# --- 1. Define Members and Connections ---
 
-    # Create steelpy members using the specific factory function
-    beam = SteelpyMemberFactory.create_steelpy_member(
-        section_class=aisc.W_shapes,
-        section_name="W21X83",
-        material=MATERIALS["a992"],
-        shape_type="W"
-    )
+# Gusset Plate for Bracing Connection
+gusset_plate_bracing = Plate.create_plate_member(
+    t=1 * si.inch,
+    material=MATERIALS["a572_gr50"]
+)
 
-    support = SteelpyMemberFactory.create_steelpy_member(
-        section_class=aisc.W_shapes,
-        section_name="W14X90",
-        material=MATERIALS["a572_gr50"],
-        shape_type="W"
-    )
+# Bracing Connection Bolt Configuration
+bracing_connection = BoltConfiguration(
+    row_spacing=3.0 * si.inch,
+    column_spacing=3.0 * si.inch,
+    n_rows=2,
+    n_columns=7,
+    edge_distance_vertical=2 * si.inch,
+    edge_distance_horizontal=1.5 * si.inch,
+    bolt_diameter=7/8 * si.inch,
+    bolt_grade=BOLT_GRADES["a325_x"],
+    material=MATERIALS["a572_gr50"],
+    connection_type="bracing",
+    angle=47.2 * math.pi / 180
+)
 
-    bracing = SteelpyMemberFactory.create_steelpy_member(
-        section_class=aisc.L_shapes,
-        section_name="L8X6X1",
-        material=MATERIALS["a36"],
-        shape_type="L"
-    )
-    bracing.loading_condition = 2
-    # Create a plate member using its dedicated factory
-    gusset_plate = Plate.create_plate_member(
-        t=1 * si.inch,
-        material=MATERIALS["a572_gr50"]
-    )
-    selected_bolt_grade = BOLT_GRADES["a325_x"]
-    gusset_connection = BoltConfiguration(
-        row_spacing=3.0 * si.inch,
-        column_spacing=3.0 * si.inch,
-        n_rows=2,
-        n_columns=7,
-        edge_distance_vertical=2 * si.inch,
-        edge_distance_horizontal=1.5 * si.inch,
-        bolt_diameter=7/8 * si.inch,
-        bolt_grade=selected_bolt_grade, # Assign the object directly
-        material=MATERIALS["a572_gr50"]
-    )
+# End Plate for Column Connection
+end_plate_column = Plate.create_plate_member(
+    t=1 * si.inch,
+    material=MATERIALS["a572_gr50"]
+)
 
-    loads_dict = {
-        "shear": None, # Shear load in kips
-        "axial": 840 * si.kip, # Axial load (set to None in this case)
-        "moment": None # Moment load (set to None in this case)
-    }
-    shear = loads_dict["shear"]
-    axial = loads_dict["axial"]
-    moment = loads_dict["moment"]
+# Column to End Plate Connection
+column_endplate_connection = BoltConfiguration(
+    row_spacing=3.0 * si.inch,
+    column_spacing=3.0 * si.inch,
+    n_rows=7,
+    n_columns=2,
+    edge_distance_vertical=3 * si.inch,
+    edge_distance_horizontal=1.5 * si.inch,
+    bolt_diameter=7/8 * si.inch,
+    bolt_grade=BOLT_GRADES["a325_x"],
+    material=MATERIALS["a572_gr50"],
+    connection_type="bracing",
+    angle=47.2 * math.pi / 180
+)
 
-    shear_checker = BoltShearCalculator(connection=gusset_connection)
-    double_shear_capacity = shear_checker.calculate_capacity(
-        number_of_shear_planes=2,
-        debug=False
-    )
-    tensile_yield_checker = TensileYieldingCalculator(member=bracing)
-    brace_tensile_yield_capacity = tensile_yield_checker.calculate_capacity(debug=False)
-    brace_tensile_yield_dcr = check_dcr(capacity=brace_tensile_yield_capacity, demand=axial)
-    tensile_rupture_checker = TensileRuptureCalculator(member=bracing, connection=gusset_connection)
-    brace_tensile_rupture_capacity = tensile_rupture_checker.calculate_capacity(debug=False)
-    brace_tensile_rupture_dcr = check_dcr(capacity=brace_tensile_rupture_capacity, demand=axial)
+# Steel Members (Beam and Support)
+beam = SteelpyMemberFactory.create_steelpy_member(
+    section_class=aisc.W_shapes,
+    section_name="W21X83",
+    material=MATERIALS["a992"],
+    shape_type="W"
+)
 
-    gusset_connection_main = BoltConfiguration(
-        row_spacing=3.0 * si.inch, column_spacing=3.0 * si.inch, n_rows=2, n_columns=7,
-        edge_distance_vertical=2 * si.inch, edge_distance_horizontal=1.5 * si.inch,
-        bolt_diameter=7/8 * si.inch, bolt_grade=BOLT_GRADES["a325_x"],
-        material=MATERIALS["a572_gr50"]
-    )
+support = SteelpyMemberFactory.create_steelpy_member(
+    section_class=aisc.W_shapes,
+    section_name="W14X90",
+    material=MATERIALS["a992"],
+    shape_type="W"
+)
+
+# Weld Configuration
+gusset_weld = WeldConfiguration(
+    weld_size=0.3125 * si.inch,  # 5/16"
+    length=31.50 * si.inch,
+    electrode=WELD_ELECTRODES["e70xx"]
+)
 
 
-    # # --- 2. Instantiate the Calculator ---
-    # Check the capacity for the bracing member in an axial loading scenario
-    connection_checker = ConnectionCapacityCalculator(
-        member=gusset_plate,
-        connection=gusset_connection_main,
-        loading_orientation="Axial"
-    )
+# --- 2. Perform Calculations ---
 
-    # # --- 3. Run the Calculation ---
-    # Assume the connection is in double shear (e.g., gusset plate between two angles)
-    total_capacity = connection_checker.calculate_capacity(
-        number_of_shear_planes=2,
-        debug=True
-    )
+print("--- Starting Steel Connection Calculations ---")
+
+# a) UFM Plate Dimension and Load Multiplier Calculation
+print("\n1. UFM Calculator...")
+ufm_checker = UFMCalculator(
+    beam=beam,
+    support=support,
+    endplate=end_plate_column,
+    connection=column_endplate_connection
+)
+final_dimensions = ufm_checker.get_dimensions(debug=True)
+final_multipliers = ufm_checker.get_loads_multipliers(debug=True)
+
+# Assign calculated dimensions to the plate object for subsequent checks
+gusset_plate_bracing.dimensions = final_dimensions
+print(f"\n   Calculated Plate Dimensions: {final_dimensions}")
+print(f"   Calculated Load Multipliers: {final_multipliers}")
 
 
-    u_checker = BlockShearCalculator(member=gusset_plate, connection=gusset_connection_main, loading_orientation="Axial")
-    u_capacity = u_checker.calculate_capacity(debug=True)
+# b) Plate Tensile Yielding Calculation (based on UFM dimensions)
+print("\n2. Plate Tensile Yielding Calculator...")
+plate_yielding_checker = PlateTensileYieldingCalculator(gusset_plate_bracing)
+horiz_yield = plate_yielding_checker.calculate_capacity_horizontal(debug=True)
+vert_yield = plate_yielding_checker.calculate_capacity_vertical(debug=True)
+print(f"\n   Horizontal Yielding Capacity: {horiz_yield:.2f}")
+print(f"   Vertical Yielding Capacity:   {vert_yield:.2f}")
 
 
-    # The thickness of L8X6X1 is 1.0 inch.
-    l_checker = BlockShearCalculator(
-        member=bracing, connection=gusset_connection_main, loading_orientation="Axial", loading_condition=2
-    )
-    l_capacity = l_checker.calculate_capacity(debug=True)
+# c) Whitmore Section Tensile Yielding
+print("\n3. Whitmore Section Tensile Yielding Calculator...")
+whitmore_checker = TensileYieldWhitmore(gusset_plate_bracing, bracing_connection)
+whitmore_capacity = whitmore_checker.calculate_capacity(debug=True)
+print(f"\n   Whitmore Section Capacity: {whitmore_capacity:.2f}")
+
+
+# d) Compression Buckling
+print("\n4. Compression Buckling Calculator...")
+comp_buckling_checker = CompressionBucklingCalculator(gusset_plate_bracing, bracing_connection)
+try:
+    comp_capacity = comp_buckling_checker.calculate_capacity(debug=True)
+    print(f"\n   Compression Buckling Capacity: {comp_capacity:.2f}")
+except ValueError as e:
+    print(f"\n   Compression Buckling Check Failed: {e}")
+
+
+# e) Web Local Yielding
+print("\n5. Web Local Yielding Calculator...")
+web_yield_checker = WebLocalYieldingCalculator(beam, gusset_weld)
+web_yield_capacity = web_yield_checker.calculate_capacity(
+    thickness_pl=end_plate_column.t,
+    debug=True
+)
+print(f"\n   Web Local Yielding Capacity: {web_yield_capacity:.2f}")
+
+print("\n--- All Calculations Complete ---")

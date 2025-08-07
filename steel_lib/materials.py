@@ -1,6 +1,6 @@
 from typing import Dict
 import forallpeople as si
-from .data_models import Material, BoltGrade
+from .data_models import Material, BoltGrade, WeldElectrode
 
 si.environment('structural', top_level=False)
 
@@ -15,4 +15,10 @@ BOLT_GRADES: Dict[str, BoltGrade] = {
     "a325_x": BoltGrade(Fnt=90.0 * si.ksi, Fnv=68.0 * si.ksi), # Threads excluded
     "a490_n": BoltGrade(Fnt=113.0 * si.ksi, Fnv=68.0 * si.ksi), # Threads included
     "a490_x": BoltGrade(Fnt=113.0 * si.ksi, Fnv=84.0 * si.ksi), # Threads excluded
+}
+
+WELD_ELECTRODES: Dict[str, WeldElectrode] = {
+    "e60xx": WeldElectrode(Fexx=60.0 * si.ksi),
+    "e70xx": WeldElectrode(Fexx=70.0 * si.ksi),
+    "e80xx": WeldElectrode(Fexx=80.0 * si.ksi),
 }

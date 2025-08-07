@@ -118,3 +118,80 @@ def _get_member_thickness(self) -> float:
 -   **Previous**: N/A
 -   **Next**: N/A
 -   **Related**: N/A
+---
+
+### 📅 2025-08-07 - 17:25 UTC - Entry #2
+
+#### 📋 Task/Request
+> Refactor the initial `untitled3.py` script to align with the project's `guidelines.md`. This includes structuring the project, consolidating duplicated code, separating concerns, and establishing the development journal system.
+
+#### 🎯 Approach
+- **Guideline Implementation**: Created the `docs/COMMON_PROBLEMS.md` and `docs/SUCCESS_PATTERNS.md` files to establish the full documentation structure required by the guidelines.
+- **Code Analysis**: Reviewed `untitled3.py` and identified significant code duplication, particularly with the `UFMCalculator` and various tensile yielding calculators. The script also mixed class definitions with procedural test code.
+- **Refactoring & Consolidation**:
+    - Migrated all calculation-related classes (`TensileYieldWhitmore`, `CompressionBucklingCalculator`, `UFMCalculator`, `PlateTensileYieldingCalculator`, `WebLocalYieldingCalculator`) and utility functions (`round_to_interval`, `round_up_to_interval`) from `untitled3.py` into `steel_lib/calculations.py`.
+    - This addressed the "Don't Repeat Yourself" (DRY) and "Single Responsibility" principles by creating a single, authoritative source for all calculation logic.
+- **Separation of Concerns**:
+    - Transformed `main.py` into a clean, high-level script that demonstrates how to use the library. It now handles object instantiation and calls the refactored calculators, serving as a clear example.
+    - All raw calculation logic and class definitions were removed from `main.py`.
+- **Cleanup**: Deleted the now-obsolete `untitled3.py` file.
+- **Files Modified**: `docs/DEVELOPMENT_JOURNAL.md`, `docs/COMMON_PROBLEMS.md`, `docs/SUCCESS_PATTERNS.md`, `steel_lib/calculations.py`, `main.py`.
+- **Files Deleted**: `untitled3.py`.
+- **Design Patterns Used**: Adapter (in the calculators, which adapt raw member/connection objects into a consistent format for calculation), Strategy (implied by having multiple calculator classes for different limit states).
+
+#### 🐛 Problems Encountered
+1. **Problem**: The initial script (`untitled3.py`) was a mix of class definitions, object instantiations, and calculation calls, making it difficult to understand and maintain.
+   - **Root Cause**: The script was likely developed in a notebook environment (`.ipynb`) where this style is common, but it's not suitable for a structured library.
+   - **Solution**: The code was refactored by separating the core logic (calculators) from the example usage. The calculators were moved to `steel_lib/calculations.py` and the usage example was moved to `main.py`.
+   - **Prevention**: Adhering to the project structure defined in `guidelines.md` will prevent this from happening in the future. New logic should be added to the appropriate module, and `main.py` should only be used for demonstration or as an application entry point.
+
+2. **Problem**: Multiple, conflicting definitions for classes like `UFMCalculator` and `TensileYieldingCalculator` existed within the same file.
+   - **Root Cause**: Iterative development without refactoring led to duplicated and slightly modified classes being added instead of updating existing ones.
+   - **Solution**: The best implementation of each duplicated class was identified and consolidated into a single class in `steel_lib/calculations.py`. Redundant versions were removed.
+   - **Prevention**: Before adding new functionality, developers should check for existing classes that can be extended or modified. Code reviews should flag duplicated logic.
+
+#### ✅ Solution Implemented
+```python
+# In steel_lib/calculations.py (Example of consolidated UFMCalculator)
+class UFMCalculator:
+    """
+    Calculates UFM endplate dimensions and load multipliers with a
+    comprehensive debug mode to show all intermediate values.
+    """
+    def __init__(self, beam: Any, support: Any, endplate: Any, connection: Any):
+        self._beam_depth = self._get_attribute(beam, ['d', 'depth'])
+        self._support_depth = self._get_attribute(support, ['d', 'depth'])
+        # ... more attributes ...
+
+    def get_dimensions(self, debug: bool = False) -> PlateDimensions:
+        # ... implementation ...
+
+    def get_loads_multipliers(self, debug: bool = False) -> LoadMultipliers:
+        # ... implementation ...
+
+# In main.py (Example of clean usage)
+ufm_checker = UFMCalculator(
+    beam=beam,
+    support=support,
+    endplate=end_plate_column,
+    connection=column_endplate_connection
+)
+final_dimensions = ufm_checker.get_dimensions(debug=True)
+```
+
+#### 🔍 Code Review Notes
+- **Complexity**: The cyclomatic complexity of the individual calculator methods is low. The overall complexity of the system was reduced by removing duplicated code.
+- **Test Coverage**: Not measured, but the `main.py` script serves as an initial integration test. Formal unit tests should be the next step.
+- **Performance Impact**: Negligible. The changes were primarily for structure and readability.
+
+#### 📝 Lessons Learned
+- Strict adherence to project structure guidelines from the start is crucial for maintainability.
+- Notebook-style code (`.ipynb`) must be refactored before being integrated into a formal Python library.
+- Consolidating duplicated logic into single, well-defined classes is a primary goal of refactoring.
+
+#### 🏷️ Tags
+#refactor #project-structure #best-practices
+
+#### 🔗 Related Entries
+- **Previous**: Entry #1
+- **Next**: TBD

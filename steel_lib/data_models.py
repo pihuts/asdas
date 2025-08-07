@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Optional, Any
+from typing import Optional, Any, Literal
 import forallpeople as si
 
 si.environment('structural', top_level=False)
@@ -56,6 +56,8 @@ class BoltConfiguration:
     bolt_diameter: si.inch
     bolt_grade: BoltGrade # Link to the BoltGrade object
     material: Material
+    connection_type: str = "bracing"
+    angle: float = 0.0
 from steelpy import aisc
 from typing import Any, Type
 
@@ -76,3 +78,32 @@ class SteelpyMemberFactory:
         section.add_property("Type", shape_type)
         section.loading_condition = loading_condition
         return section
+
+@dataclass(frozen=True)
+class WeldElectrode:
+    """
+    Represents the properties of a weld electrode. It's frozen because
+    these are standard, immutable values.
+    """
+    Fexx: float  # Nominal strength of the weld electrode (e.g., 70 ksi for E70XX)
+
+WeldType = Literal["fillet", "groove"]
+
+@dataclass
+class WeldConfiguration:
+    """
+    Defines the geometry and properties of a specific weld line in a connection.
+    """
+    weld_size: float
+    length: float
+    electrode: WeldElectrode  # Link to the WeldElectrode object
+    weld_type: WeldType = "fillet" # Default to fillet, the most common type
+
+@dataclass(frozen=True)
+class PlateDimensions:
+    vertical: float; horizontal: float; thickness: float
+
+@dataclass(frozen=True)
+class LoadMultipliers:
+    shear_force_column_interface: float; shear_force_beam_interface: float
+    normal_force_column: float; normal_force_beam: float

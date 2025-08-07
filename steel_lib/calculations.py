@@ -1,12 +1,43 @@
 import math
-from typing import Any, Literal
+from typing import Any, Literal, Union, Dict, Optional, Type
+from dataclasses import dataclass, field
 import forallpeople as si
-from .data_models import BoltConfiguration, Plate
+from .data_models import (
+    BoltConfiguration,
+    Plate,
+    PlateDimensions,
+    LoadMultipliers,
+    WeldConfiguration,
+)
 
 si.environment('structural', top_level=False)
 
-def check_dcr(capacity,demand):
-  return demand/capacity # Returns the ratio of demand to capacity
+
+# Define a type hint for numbers for clarity
+Numeric = Union[int, float]
+
+
+def round_to_interval(number: Numeric, interval: Numeric) -> Numeric:
+    """
+    Rounds a number to the nearest specified interval.
+    """
+    if interval == 0:
+        raise ValueError("Interval cannot be zero.")
+    return round(number / interval) * interval
+
+
+def round_up_to_interval(number: Numeric, interval: Numeric) -> Numeric:
+    """
+    Rounds a number UP to the nearest specified interval (ceiling).
+    """
+    if interval == 0:
+        raise ValueError("Interval cannot be zero.")
+    return math.ceil(number / interval) * interval
+
+
+def check_dcr(capacity, demand):
+    return demand / capacity  # Returns the ratio of demand to capacity
+
 
 class BoltShearCalculator:
     """
@@ -366,5 +397,469 @@ class ConnectionCapacityCalculator:
             print(f"    Loading Condition Multiplier:{loading_condition}")
             print(f"    -------------------------------------------")
             print(f"    Final Design Capacity (φRn): {design_capacity:.2f}")
+
+        return design_capacity
+
+
+class TensileYieldWhitmore:
+    """
+    Calculates the tensile yielding capacity based on the Whitmore section.
+    """
+
+    def __init__(self, member: Any, connection: BoltConfiguration):
+        """Initializes the calculator with the member and connection objects."""
+        self.member = member
+        self.connection = connection
+        self.Fy = self.member.Fy
+        self.loading_condition = getattr(self.member, "loading_condition", 1)
+        self.n_cols = self.connection.n_columns
+        self.spacing_col = self.connection.column_spacing
+        self.spacing_row = self.connection.row_spacing
+        self.t = self._get_member_thickness()
+
+    def _get_member_thickness(self) -> float:
+        """Determines thickness from various member types and ensures it has units."""
+        if hasattr(self.member, "t"):
+            t_val = self.member.t
+            if hasattr(t_val, 'units'):
+                return t_val
+            if isinstance(t_val, (int, float)):
+                return t_val * si.inch
+            return t_val
+        elif hasattr(self.member, "tw"):
+            tw_val = self.member.tw
+            if isinstance(tw_val, (int, float)):
+                return tw_val * si.inch
+            return tw_val
+        raise AttributeError("Member does not have a recognizable thickness attribute.")
+
+    @property
+    def length_whitmore(self) -> float:
+        """Calculates the effective width of the Whitmore section."""
+        bolt_group_length = (self.n_cols - 1) * self.spacing_col
+        spread_width = 2 * (bolt_group_length * math.tan(math.radians(30)))
+        return self.spacing_row + spread_width
+
+    @property
+    def area_whitmore(self) -> float:
+        """Calculates the area of the Whitmore section."""
+        return (
+            self.length_whitmore - 4.7 * si.inch
+        ) * self.t + 4.7 * si.inch * 0.515 * si.inch
+
+    def calculate_capacity(
+        self, resistance_factor: float = 0.9, debug: bool = False
+    ) -> float:
+        """
+        Calculates the design tensile yield strength of the Whitmore section.
+        """
+        nominal_capacity = self.Fy * self.area_whitmore
+        design_capacity = (
+            nominal_capacity * resistance_factor * self.loading_condition
+        )
+        if debug:
+            print("--- DEBUG: Whitmore Section Tensile Yield ---")
+            print(f"  Inputs:")
+            print(f"    Yield Strength (Fy):         {self.Fy}")
+            print(f"    Member Thickness (t):        {self.t:.3f}")
+            print(f"  Whitmore Geometry:")
+            print(f"    Effective Length (Lw):       {self.length_whitmore:.4f}")
+            print(f"    Effective Area (Aw):         {self.area_whitmore:.4f}")
+            print(f"  Calculation:")
+            print(f"    Nominal Capacity (Rn):       {nominal_capacity:.2f}")
+            print(f"    Resistance Factor (φ):       {resistance_factor}")
+            print(
+                f"    Loading Condition Multiplier:{self.loading_condition}"
+            )
+            print(f"    -------------------------------------------")
+            print(f"    Final Design Capacity (φRn): {design_capacity:.2f}")
+        return design_capacity
+
+
+class CompressionBucklingCalculator:
+    """
+    Calculates the compression buckling capacity of a member.
+    """
+
+    def __init__(self, member: Any, connection: BoltConfiguration):
+        """Initializes the calculator with the member and connection objects."""
+        self.member = member
+        self.connection = connection
+        self.connection_type = self.connection.connection_type
+        self.Fy = self.member.Fy
+        self.t = self._get_member_thickness()
+
+    def _get_member_thickness(self) -> float:
+        """Determ-ines thickness from various member types and ensures it has units."""
+        if hasattr(self.member, "t"):
+            t_val = self.member.t
+            if hasattr(t_val, 'units'):
+                return t_val
+            if isinstance(t_val, (int, float)):
+                return t_val * si.inch
+            return t_val
+        elif hasattr(self.member, "tw"):
+            tw_val = self.member.tw
+            if isinstance(tw_val, (int, float)):
+                return tw_val * si.inch
+            return tw_val
+        raise AttributeError("Member does not have a recognizable thickness attribute.")
+
+    @property
+    def k(self) -> float:
+        return (
+            0.5
+            if self.connection_type == "bracing"
+            else 1.2
+        )
+
+    @property
+    def r(self):
+        return self.t / math.sqrt(12)
+
+    @property
+    def slenderness_ratio(self):
+        return (self.k * 9.76 * si.inch) / (self.r)
+
+    def calculate_capacity(self, resistance_factor=0.9, debug: bool = False) -> float:
+        """
+        Calculates the design compression buckling strength of the member.
+        """
+        if self.slenderness_ratio <= 25:
+            return self.Fy * 20.9 * si.inch**2 * resistance_factor
+        else:
+            raise ValueError(
+                "Member is not slender enough for compression buckling calculation."
+            )
+
+
+class UFMCalculator:
+    """
+    Calculates UFM endplate dimensions and load multipliers with a
+    comprehensive debug mode to show all intermediate values.
+    """
+
+    def __init__(self, beam: Any, support: Any, endplate: Any, connection: Any):
+        self._beam_depth = self._get_attribute(beam, ["d", "depth"])
+        self._support_depth = self._get_attribute(support, ["d", "depth"])
+        self._end_plate_thickness = self._get_attribute(endplate, ["t", "thickness"])
+        self._edge_dist = connection.edge_distance_vertical
+        self._row_spacing = connection.row_spacing
+        self._n_rows = connection.n_rows
+        self._angle_rad = connection.angle
+        self._debug_header_printed = False
+
+    def _get_attribute(self, obj: Any, potential_names: list[str]) -> float:
+        for name in potential_names:
+            if hasattr(obj, name):
+                value = getattr(obj, name)
+                if hasattr(value, 'units'):
+                    return value
+                # Check if the value is a number before applying units
+                if isinstance(value, (int, float)):
+                    return value * si.inch
+                return value # Return as is if it's not a number and has no units
+        raise AttributeError(
+            f"Object does not have any of the expected attributes: {potential_names}"
+        )
+
+    def _print_debug_inputs(self):
+        """Prints a standard header with all initial inputs, but only once."""
+        if not self._debug_header_printed:
+            print("--- DEBUG: UFM Calculator Initial Inputs ---")
+            print(f"  Beam Depth:              {self._beam_depth:.3f}")
+            print(f"  Support Depth:           {self._support_depth:.3f}")
+            print(f"  End Plate Thickness:     {self._end_plate_thickness:.3f}")
+            print(f"  Edge Distance (vert):    {self._edge_dist:.3f}")
+            print(f"  Row Spacing:             {self._row_spacing:.3f}")
+            print(f"  Number of Rows:          {self._n_rows}")
+            print(
+                f"  Connection Angle:        {math.degrees(self._angle_rad):.2f} degrees"
+            )
+            self._debug_header_printed = True
+
+    @property
+    def _beam_half_depth(self) -> float:
+        return self._beam_depth / 2
+
+    @property
+    def _support_half_depth(self) -> float:
+        return self._support_depth / 2
+
+    @property
+    def _beta(self) -> float:
+        return self._edge_dist + ((self._n_rows - 1) * self._row_spacing) / 2
+
+    @property
+    def _alpha(self) -> float:
+        return (
+            (self._beam_half_depth + self._beta) * math.tan(self._angle_rad)
+            - self._support_half_depth
+        )
+
+    @property
+    def _r(self) -> float:
+        return (
+            (self._alpha + self._support_half_depth) ** 2
+            + (self._beam_half_depth + self._beta) ** 2
+        ) ** 0.5
+
+    @property
+    def _horizontal_plate_length(self) -> float:
+        k_line_clearance = 0.75 * si.inch
+        return 2 * self._alpha - 2 * self._end_plate_thickness - k_line_clearance
+
+    def get_dimensions(self, debug: bool = False) -> PlateDimensions:
+        """Calculates and returns the final, rounded plate dimensions."""
+        if debug:
+            self._print_debug_inputs()
+            print("\n--- Debugging get_dimensions() ---")
+            print(f"  1. Calculate alpha (_alpha):")
+            print(
+                f"     _beta = {self._edge_dist:.2f} + (({self._n_rows}-1) * {self._row_spacing:.2f}) / 2 = {self._beta:.4f}"
+            )
+            print(
+                f"     _alpha = ({self._beam_half_depth:.2f} + {self._beta:.2f}) * tan({math.degrees(self._angle_rad):.1f}°) - {self._support_half_depth:.2f} = {self._alpha:.4f}"
+            )
+            print(f"  2. Calculate Horizontal Length (lh):")
+            print(
+                f"     lh = 2*{self._alpha:.2f} - 2*{self._end_plate_thickness:.2f} - 0.75 = {self._horizontal_plate_length:.4f}"
+            )
+        unrounded_vertical = (
+            self._edge_dist * 2
+            + ((self._n_rows - 1) * self._row_spacing)
+            + 0.5 * si.inch
+        )
+        vertical_dim = round_up_to_interval(
+            number=unrounded_vertical, interval=0.25 * si.inch
+        )
+        horizontal_dim = round_up_to_interval(
+            number=self._horizontal_plate_length, interval=0.25 * si.inch
+        )
+        if debug:
+            print(f"  3. Calculate Final Dimensions:")
+            print(
+                f"     Vertical (unrounded) = 2*{self._edge_dist:.2f} + (({self._n_rows}-1)*{self._row_spacing:.2f}) + 0.5 = {unrounded_vertical:.4f}"
+            )
+            print(f'     -> Rounded to 0.25": {vertical_dim:.2f}')
+            print(
+                f"     Horizontal (unrounded) = {self._horizontal_plate_length:.4f}"
+            )
+            print(f'     -> Rounded to 0.25": {horizontal_dim:.2f}')
+        return PlateDimensions(
+            vertical=vertical_dim,
+            horizontal=horizontal_dim,
+            thickness=self._end_plate_thickness,
+        )
+
+    def get_loads_multipliers(self, debug: bool = False) -> LoadMultipliers:
+        """Calculates and returns the load multipliers for the UFM interfaces."""
+        if debug:
+            self._print_debug_inputs()
+            print("\n--- Debugging get_loads_multipliers() ---")
+            print(f"  1. Calculate geometric properties (_alpha, _beta, _r):")
+            print(
+                f"     _beta = {self._edge_dist:.2f} + (({self._n_rows}-1) * {self._row_spacing:.2f}) / 2 = {self._beta:.4f}"
+            )
+            print(
+                f"     _alpha = ({self._beam_half_depth:.2f} + {self._beta:.2f}) * tan({math.degrees(self._angle_rad):.1f}°) - {self._support_half_depth:.2f} = {self._alpha:.4f}"
+            )
+            print(
+                f"     _r = sqrt(({self._alpha:.2f} + {self._support_half_depth:.2f})² + ({self._beam_half_depth:.2f} + {self._beta:.2f})²) = {self._r:.4f}"
+            )
+            print(f"  2. Calculate Final Multipliers:")
+        multipliers = LoadMultipliers(
+            shear_force_column_interface=self._beta / self._r,
+            shear_force_beam_interface=self._beam_half_depth / self._r,
+            normal_force_column=self._support_half_depth / self._r,
+            normal_force_beam=self._alpha / self._r,
+        )
+        if debug:
+            print(
+                f"     Shear (Column) = _beta / _r = {multipliers.shear_force_column_interface:.4f}"
+            )
+            print(
+                f"     Shear (Beam)   = beam_half_depth / _r = {multipliers.shear_force_beam_interface:.4f}"
+            )
+            print(
+                f"     Normal (Column)= support_half_depth / _r = {multipliers.normal_force_column:.4f}"
+            )
+            print(
+                f"     Normal (Beam)  = _alpha / _r = {multipliers.normal_force_beam:.4f}"
+            )
+        return multipliers
+
+
+class PlateTensileYieldingCalculator:
+    """
+    Calculates design tensile strength based on gross section yielding (AISC J4.1a).
+    This calculator expects to be initialized with a member object that has a
+    '.dimensions' attribute containing a PlateDimensions object.
+    """
+
+    def __init__(self, member: Any):
+        """
+        Initializes the calculator by extracting required data from the member object.
+        """
+        if not hasattr(member, "dimensions"):
+            raise AttributeError(
+                "The provided 'member' object must have a '.dimensions' attribute."
+            )
+        self.dimensions: PlateDimensions = member.dimensions
+        self.Fy = member.Fy
+        self.loading_condition = getattr(member, "loading_condition", 1)
+        self._thickness = self.dimensions.thickness
+
+    def _calculate_capacity_for_path(
+        self,
+        gross_length: float,
+        interface_name: str,
+        resistance_factor: float,
+        debug: bool,
+    ) -> float:
+        """A private helper to perform the core calculation, avoiding code duplication."""
+        effective_length = gross_length - 0.75 * si.inch
+        gross_area = effective_length * self._thickness
+        nominal_capacity = self.Fy * gross_area
+        design_capacity = (
+            nominal_capacity * resistance_factor * self.loading_condition
+        )
+        if debug:
+            print(f"\n--- DEBUG: Tensile Yielding ({interface_name}) ---")
+            print(f"  Inputs:")
+            print(f"    Yield Strength (Fy):     {self.Fy}")
+            print(f"    Gross Length:            {gross_length:.2f}")
+            print(f"    Thickness:               {self._thickness:.3f}")
+            print(f"  Calculation:")
+            print(
+                f'    Effective Length:        {effective_length:.2f} (Gross Length - 0.75")'
+            )
+            print(f"    Gross Area (Ag):         {gross_area:.4f}")
+            print(f"    Nominal Capacity (Pn):   {nominal_capacity:.2f}")
+            print(f"    Resistance Factor (φ):   {resistance_factor}")
+            print(f"    Loading Condition:       {self.loading_condition}")
+            print(f"  -------------------------------------------")
+            print(f"  Final Design Capacity (φPn): {design_capacity:.2f}")
+        return design_capacity
+
+    def calculate_capacity_horizontal(
+        self, resistance_factor: float = 0.9, debug: bool = False
+    ) -> float:
+        """Calculates the design tensile yield strength along the HORIZONTAL path."""
+        return self._calculate_capacity_for_path(
+            gross_length=self.dimensions.horizontal,
+            interface_name="Horizontal",
+            resistance_factor=resistance_factor,
+            debug=debug,
+        )
+
+    def calculate_capacity_vertical(
+        self, resistance_factor: float = 0.9, debug: bool = False
+    ) -> float:
+        """Calculates the design tensile yield strength along the VERTICAL path."""
+        return self._calculate_capacity_for_path(
+            gross_length=self.dimensions.vertical,
+            interface_name="Vertical",
+            resistance_factor=resistance_factor,
+            debug=debug,
+        )
+
+
+class WebLocalYieldingCalculator:
+    """
+    Calculates the web local yielding capacity based on AISC Specification J10.2,
+    with a clear separation between input and calculation debugging.
+    """
+
+    def __init__(self, member: Any, connection: Any):
+        """Initializes the calculator by extracting all necessary primitive values."""
+        self._Fy = member.Fy
+        self._tw = self._get_attribute(member, ["tw"])
+        self._k = self._get_attribute(member, ["k", "k_det"])
+        self._d = self._get_attribute(member, ["d", "depth"])
+        self._connection_length = connection.length
+        self._loading_condition = getattr(member, "loading_condition", 1)
+
+    def _get_attribute(self, obj: Any, potential_names: list[str]) -> float:
+        """Safely gets a numeric attribute from an object and ensures it has units."""
+        for name in potential_names:
+            if hasattr(obj, name):
+                value = getattr(obj, name)
+                return value if hasattr(value, "units") else value * si.inch
+        raise AttributeError(
+            f"Object does not have any of the expected attributes: {potential_names}"
+        )
+
+    def _print_debug_inputs(self, thickness_pl: float):
+        """A private helper to print a clean block of all initial input values."""
+        print("--- DEBUG: Web Local Yielding Inputs ---")
+        print(f"  Yield Strength (Fy):        {self._Fy}")
+        print(f"  Web Thickness (tw):         {self._tw:.3f}")
+        print(f"  Detailing Distance (k):     {self._k:.3f}")
+        print(f"  Member Depth (d):           {self._d:.2f}")
+        print(f"  Connection Length (lb):     {self._connection_length:.2f}")
+        print(f"  End Plate Thickness (tpl):  {thickness_pl:.3f}")
+
+    def _print_debug_calculation(
+        self, centroid, multiplier, bearing_len, Pn, phiRn, phi
+    ):
+        """A private helper to print the detailed step-by-step calculation."""
+        print("\n--- DEBUG: Calculation Steps ---")
+        print(f"  1. Calculate Connection Load Centroid:")
+        print(
+            f'     Centroid = lb/2 + clip + tpl = {self._connection_length/2:.2f} + 0.75" + {centroid - self._connection_length/2 - 0.75*si.inch:.2f} = {centroid:.2f}'
+        )
+        print(f"  2. Determine Multiplier:")
+        print(
+            f"     Condition: Is load centroid ({centroid:.2f}) <= member depth ({self._d:.2f})?"
+        )
+        print(f"     Result: {centroid <= self._d}, therefore multiplier = {multiplier}")
+        print(f"  3. Calculate Bearing Length:")
+        print(
+            f"     Bearing Length = {multiplier}*k + lb = ({multiplier}*{self._k:.2f}) + {self._connection_length:.2f} = {bearing_len:.2f}"
+        )
+        print(f"  4. Calculate Nominal Capacity (Pn):")
+        print(
+            f"     Pn = Fy * tw * Bearing Length = {self._Fy} * {self._tw:.3f} * {bearing_len:.2f} = {Pn:.2f}"
+        )
+        print(f"  5. Calculate Design Capacity (φRn):")
+        print(
+            f"     φRn = Pn * φ * loading_condition = {Pn:.2f} * {phi} * {self._loading_condition} = {phiRn:.2f}"
+        )
+
+    def calculate_capacity(
+        self, thickness_pl: float, resistance_factor: float = 1.0, debug: bool = False
+    ) -> float:
+        """
+        Calculates the design web local yielding strength (φRn).
+        """
+        if debug:
+            self._print_debug_inputs(thickness_pl)
+
+        clip_dist = 3 / 4 * si.inch
+        connection_load_centroid = (
+            self._connection_length / 2 + clip_dist + thickness_pl
+        )
+
+        if connection_load_centroid <= self._d:
+            multiplier_k = 2.5
+        else:
+            multiplier_k = 5.0
+
+        bearing_length = (multiplier_k * self._k) + self._connection_length
+        nominal_capacity = self._Fy * self._tw * bearing_length
+        design_capacity = (
+            nominal_capacity * resistance_factor * self._loading_condition
+        )
+
+        if debug:
+            self._print_debug_calculation(
+                connection_load_centroid,
+                multiplier_k,
+                bearing_length,
+                nominal_capacity,
+                design_capacity,
+                resistance_factor,
+            )
 
         return design_capacity
