@@ -9,6 +9,7 @@ from .data_models import (
     LoadMultipliers,
     WeldConfiguration,
 )
+from .debugging import DebugLogger
 
 si.environment('structural', top_level=False)
 
@@ -66,25 +67,22 @@ class BoltShearCalculator:
         """
         Calculates the design shear strength of the bolt.
         """
+        logger = DebugLogger("Bolt Shear Strength", debug)
+        logger.add_input("Nominal Shear Stress (Fnv)", self.fnv)
+        logger.add_input("Bolt Diameter (d)", self.bolt_diameter)
+        logger.add_input("Bolt Area (Ab)", self.bolt_area)
+        logger.add_input("Number of Shear Planes", number_of_shear_planes)
+        logger.add_input("Resistance Factor (φ)", resistance_factor)
+
         # Nominal strength (Rn) = Fnv * Ab * Ns
         nominal_strength = self.fnv * self.bolt_area * number_of_shear_planes
+        logger.add_calculation("Nominal Strength (Rn = Fnv * Ab * Ns)", nominal_strength)
 
         # Design strength (φRn) = φ * Rn
         design_strength = resistance_factor * nominal_strength
+        logger.add_output("Design Strength (φRn)", design_strength)
 
-        if debug:
-            print("\n--- DEBUG: Bolt Shear Strength Calculation ---")
-            print(f"  Inputs:")
-            print(f"    Nominal Shear Stress (Fnv): {self.fnv:.3f}")
-            print(f"    Bolt Diameter (d):          {self.bolt_diameter:.3f}")
-            print(f"    Bolt Area (Ab):             {self.bolt_area:.4f}")
-            print(f"    Number of Shear Planes:     {number_of_shear_planes}")
-            print(f"  Calculation:")
-            print(f"    Nominal Strength (Rn = Fnv * Ab * Ns): {nominal_strength:.2f}")
-            print(f"    Resistance Factor (φ):                 {resistance_factor}")
-            print(f"  -------------------------------------------")
-            print(f"    Design Strength (φRn):                 {design_strength:.2f}")
-
+        logger.display()
         return design_strength
 
 class TensileYieldingCalculator:
@@ -104,17 +102,14 @@ class TensileYieldingCalculator:
         nominal_strength = self.Fy * self.Ag
         design_strength = resistance_factor * nominal_strength * self.loading_condition
 
-        if debug:
-            print("\n--- DEBUG: Tensile Yielding Calculation ---")
-            print(f"  Inputs:")
-            print(f"    Yield Strength (Fy):      {self.Fy:.3f}")
-            print(f"    Gross Area (Ag):          {self.Ag:.4f}")
-            print(f"    Loading Condition:        {self.loading_condition}")
-            print(f"  Calculation:")
-            print(f"    Nominal Strength (Rn = Fy * Ag): {nominal_strength:.2f}")
-            print(f"    Resistance Factor (φ):           {resistance_factor}")
-            print(f"  -------------------------------------------")
-            print(f"    Design Strength (φRn):           {design_strength:.2f}")
+        logger = DebugLogger("Tensile Yielding", debug)
+        logger.add_input("Yield Strength (Fy)", self.Fy)
+        logger.add_input("Gross Area (Ag)", self.Ag)
+        logger.add_input("Loading Condition", self.loading_condition)
+        logger.add_input("Resistance Factor (φ)", resistance_factor)
+        logger.add_calculation("Nominal Strength (Rn = Fy * Ag)", nominal_strength)
+        logger.add_output("Design Strength (φRn)", design_strength)
+        logger.display()
 
         return design_strength
 
@@ -152,18 +147,15 @@ class TensileRuptureCalculator:
         nominal_strength = self.Fu * An
         design_strength = resistance_factor * nominal_strength * self.loading_condition
 
-        if debug:
-            print("\n--- DEBUG: Tensile Rupture Calculation ---")
-            print(f"  Inputs:")
-            print(f"    Ultimate Strength (Fu):   {self.Fu:.3f}")
-            print(f"    Net Area (An):            {An:.4f}")
-            print(f"    Shear Lag Factor (Ubs):   {Ubs:.4f}")
-            print(f"    Loading Condition:        {self.loading_condition}")
-            print(f"  Calculation:")
-            print(f"    Nominal Strength (Rn = Fu * An): {nominal_strength:.2f}")
-            print(f"    Resistance Factor (φ):           {resistance_factor}")
-            print(f"  -------------------------------------------")
-            print(f"    Design Strength (φRn):           {design_strength:.2f}")
+        logger = DebugLogger("Tensile Rupture", debug)
+        logger.add_input("Ultimate Strength (Fu)", self.Fu)
+        logger.add_input("Net Area (An)", An)
+        logger.add_input("Shear Lag Factor (Ubs)", Ubs)
+        logger.add_input("Loading Condition", self.loading_condition)
+        logger.add_input("Resistance Factor (φ)", resistance_factor)
+        logger.add_calculation("Nominal Strength (Rn = Fu * An)", nominal_strength)
+        logger.add_output("Design Strength (φRn)", design_strength)
+        logger.display()
 
         return design_strength
 
@@ -262,21 +254,17 @@ class BlockShearCalculator:
         nominal_capacity = tension_force + shear_force
         design_capacity = resistance_factor * nominal_capacity
 
-        if debug:
-            print(f"\n--- DEBUG: Block Shear {self.failure_pattern}-Pattern Calculation ---")
-            print(f"  Areas:")
-            print(f"    Gross Shear Area (Agv):   {shear_yield_component:.4f}")
-            print(f"    Net Shear Area (Anv):     {shear_rupture_component:.4f}")
-            print(f"    Net Tension Area (Ant):   {tension_rupture_component:.4f}")
-            print(f"  Forces:")
-            print(f"    Shear Yielding (0.6*Fy*Agv):   {(0.6 * Fy * shear_yield_component):.2f}")
-            print(f"    Shear Rupture (0.6*Fu*Anv):    {(0.6 * Fu * shear_rupture_component):.2f}")
-            print(f"    Tension Rupture (Ubs*Fu*Ant):  {tension_force:.2f}")
-            print(f"  Capacities:")
-            print(f"    Nominal Capacity (Rn):      {nominal_capacity:.2f}")
-            print(f"    Resistance Factor (φ):      {resistance_factor}")
-            print(f"  -------------------------------------------")
-            print(f"    Design Capacity (φRn):      {design_capacity:.2f}")
+        logger = DebugLogger(f"Block Shear {self.failure_pattern}-Pattern", debug)
+        logger.add_input("Gross Shear Area (Agv)", shear_yield_component)
+        logger.add_input("Net Shear Area (Anv)", shear_rupture_component)
+        logger.add_input("Net Tension Area (Ant)", tension_rupture_component)
+        logger.add_input("Resistance Factor (φ)", resistance_factor)
+        logger.add_calculation("Shear Yielding (0.6*Fy*Agv)", (0.6 * Fy * shear_yield_component))
+        logger.add_calculation("Shear Rupture (0.6*Fu*Anv)", (0.6 * Fu * shear_rupture_component))
+        logger.add_calculation("Tension Rupture (Ubs*Fu*Ant)", tension_force)
+        logger.add_calculation("Nominal Capacity (Rn)", nominal_capacity)
+        logger.add_output("Design Capacity (φRn)", design_capacity)
+        logger.display()
 
         return design_capacity
 
@@ -369,34 +357,28 @@ class ConnectionCapacityCalculator:
         loading_condition = getattr(self.member, 'loading_condition', 1)
         design_capacity = total_nominal_capacity  * loading_condition
 
-        if debug:
-            print("\n--- DEBUG: Connection Capacity Calculation ---")
-            print(f"  Inputs:")
-            print(f"    Member Fu:                {self.Fu:.3f}")
-            print(f"    Member Thickness:         {self.thickness:.3f}")
-            print(f"    Bolt Diameter:            {self.bolt_diameter:.3f}")
-            print(f"    Hole Diameter:            {self.hole_diameter:.3f}")
-            print(f"    Longitudinal Spacing:     {self.longitudinal_spacing:.3f}")
-            print(f"    Longitudinal Edge Dist:   {self.longitudinal_edge_dist:.3f}")
-            print(f"    Bolts per Line:           {self.bolts_per_line}")
-            print(f"    Number of Lines:          {self.num_lines}")
-            print(f"  Clear Distances:")
-            print(f"    Inner Bolt (lc_in):       {lc_in:.3f}")
-            print(f"    Outer Bolt (lc_out):      {lc_out:.3f}")
-            print(f"  Single Bolt Capacities (Nominal):")
-            print(f"    Bolt Shear Strength:        {bolt_shear_strength:.2f}")
-            print(f"    Bearing Limit (2.4*d*t*Fu): {bearing_limit:.2f}")
-            print(f"    Tearout (Inner Bolt):       {tearout_inner:.2f}")
-            print(f"    Tearout (Outer Bolt):       {tearout_outer:.2f}")
-            print(f"    -------------------------------------------")
-            print(f"    Governing Strength (Inner): {r_nominal_inner:.2f}")
-            print(f"    Governing Strength (Outer): {r_nominal_outer:.2f}")
-            print("\n  Total Connection Capacity:")
-            print(f"    Total Nominal Strength (Rn): {total_nominal_capacity:.2f}")
-            print(f"    Resistance Factor (φ):       {resistance_factor}")
-            print(f"    Loading Condition Multiplier:{loading_condition}")
-            print(f"    -------------------------------------------")
-            print(f"    Final Design Capacity (φRn): {design_capacity:.2f}")
+        logger = DebugLogger("Connection Capacity", debug)
+        logger.add_input("Member Fu", self.Fu)
+        logger.add_input("Member Thickness", self.thickness)
+        logger.add_input("Bolt Diameter", self.bolt_diameter)
+        logger.add_input("Hole Diameter", self.hole_diameter)
+        logger.add_input("Longitudinal Spacing", self.longitudinal_spacing)
+        logger.add_input("Longitudinal Edge Dist", self.longitudinal_edge_dist)
+        logger.add_input("Bolts per Line", self.bolts_per_line)
+        logger.add_input("Number of Lines", self.num_lines)
+        logger.add_input("Resistance Factor (φ)", resistance_factor)
+        logger.add_input("Loading Condition Multiplier", loading_condition)
+        logger.add_calculation("Inner Bolt Clear Distance (lc_in)", lc_in)
+        logger.add_calculation("Outer Bolt Clear Distance (lc_out)", lc_out)
+        logger.add_calculation("Bolt Shear Strength", bolt_shear_strength)
+        logger.add_calculation("Bearing Limit (2.4*d*t*Fu)", bearing_limit)
+        logger.add_calculation("Tearout (Inner Bolt)", tearout_inner)
+        logger.add_calculation("Tearout (Outer Bolt)", tearout_outer)
+        logger.add_calculation("Governing Strength (Inner)", r_nominal_inner)
+        logger.add_calculation("Governing Strength (Outer)", r_nominal_outer)
+        logger.add_calculation("Total Nominal Strength (Rn)", total_nominal_capacity)
+        logger.add_output("Final Design Capacity (φRn)", design_capacity)
+        logger.display()
 
         return design_capacity
 
@@ -457,22 +439,16 @@ class TensileYieldWhitmore:
         design_capacity = (
             nominal_capacity * resistance_factor * self.loading_condition
         )
-        if debug:
-            print("--- DEBUG: Whitmore Section Tensile Yield ---")
-            print(f"  Inputs:")
-            print(f"    Yield Strength (Fy):         {self.Fy}")
-            print(f"    Member Thickness (t):        {self.t:.3f}")
-            print(f"  Whitmore Geometry:")
-            print(f"    Effective Length (Lw):       {self.length_whitmore:.4f}")
-            print(f"    Effective Area (Aw):         {self.area_whitmore:.4f}")
-            print(f"  Calculation:")
-            print(f"    Nominal Capacity (Rn):       {nominal_capacity:.2f}")
-            print(f"    Resistance Factor (φ):       {resistance_factor}")
-            print(
-                f"    Loading Condition Multiplier:{self.loading_condition}"
-            )
-            print(f"    -------------------------------------------")
-            print(f"    Final Design Capacity (φRn): {design_capacity:.2f}")
+        logger = DebugLogger("Whitmore Section Tensile Yield", debug)
+        logger.add_input("Yield Strength (Fy)", self.Fy)
+        logger.add_input("Member Thickness (t)", self.t)
+        logger.add_input("Resistance Factor (φ)", resistance_factor)
+        logger.add_input("Loading Condition Multiplier", self.loading_condition)
+        logger.add_calculation("Effective Length (Lw)", self.length_whitmore)
+        logger.add_calculation("Effective Area (Aw)", self.area_whitmore)
+        logger.add_calculation("Nominal Capacity (Rn)", nominal_capacity)
+        logger.add_output("Final Design Capacity (φRn)", design_capacity)
+        logger.display()
         return design_capacity
 
 
@@ -525,8 +501,18 @@ class CompressionBucklingCalculator:
         """
         Calculates the design compression buckling strength of the member.
         """
+        logger = DebugLogger("Compression Buckling", debug)
+        logger.add_input("k", self.k)
+        logger.add_input("r", self.r)
+        logger.add_input("Slenderness Ratio", self.slenderness_ratio)
+        logger.add_input("Fy", self.Fy)
+        logger.add_input("Resistance Factor (φ)", resistance_factor)
+
         if self.slenderness_ratio <= 25:
-            return self.Fy * 20.9 * si.inch**2 * resistance_factor
+            capacity = self.Fy * 20.9 * si.inch**2 * resistance_factor
+            logger.add_output("Design Capacity (φRn)", capacity)
+            logger.display()
+            return capacity
         else:
             raise ValueError(
                 "Member is not slender enough for compression buckling calculation."
@@ -547,7 +533,6 @@ class UFMCalculator:
         self._row_spacing = connection.row_spacing
         self._n_rows = connection.n_rows
         self._angle_rad = connection.angle
-        self._debug_header_printed = False
 
     def _get_attribute(self, obj: Any, potential_names: list[str]) -> float:
         for name in potential_names:
@@ -562,21 +547,6 @@ class UFMCalculator:
         raise AttributeError(
             f"Object does not have any of the expected attributes: {potential_names}"
         )
-
-    def _print_debug_inputs(self):
-        """Prints a standard header with all initial inputs, but only once."""
-        if not self._debug_header_printed:
-            print("--- DEBUG: UFM Calculator Initial Inputs ---")
-            print(f"  Beam Depth:              {self._beam_depth:.3f}")
-            print(f"  Support Depth:           {self._support_depth:.3f}")
-            print(f"  End Plate Thickness:     {self._end_plate_thickness:.3f}")
-            print(f"  Edge Distance (vert):    {self._edge_dist:.3f}")
-            print(f"  Row Spacing:             {self._row_spacing:.3f}")
-            print(f"  Number of Rows:          {self._n_rows}")
-            print(
-                f"  Connection Angle:        {math.degrees(self._angle_rad):.2f} degrees"
-            )
-            self._debug_header_printed = True
 
     @property
     def _beam_half_depth(self) -> float:
@@ -611,41 +581,37 @@ class UFMCalculator:
 
     def get_dimensions(self, debug: bool = False) -> PlateDimensions:
         """Calculates and returns the final, rounded plate dimensions."""
-        if debug:
-            self._print_debug_inputs()
-            print("\n--- Debugging get_dimensions() ---")
-            print(f"  1. Calculate alpha (_alpha):")
-            print(
-                f"     _beta = {self._edge_dist:.2f} + (({self._n_rows}-1) * {self._row_spacing:.2f}) / 2 = {self._beta:.4f}"
-            )
-            print(
-                f"     _alpha = ({self._beam_half_depth:.2f} + {self._beta:.2f}) * tan({math.degrees(self._angle_rad):.1f}°) - {self._support_half_depth:.2f} = {self._alpha:.4f}"
-            )
-            print(f"  2. Calculate Horizontal Length (lh):")
-            print(
-                f"     lh = 2*{self._alpha:.2f} - 2*{self._end_plate_thickness:.2f} - 0.75 = {self._horizontal_plate_length:.4f}"
-            )
+        logger = DebugLogger("UFM Plate Dimensions", debug)
+        logger.add_input("Beam Depth", self._beam_depth)
+        logger.add_input("Support Depth", self._support_depth)
+        logger.add_input("End Plate Thickness", self._end_plate_thickness)
+        logger.add_input("Edge Distance (vert)", self._edge_dist)
+        logger.add_input("Row Spacing", self._row_spacing)
+        logger.add_input("Number of Rows", self._n_rows)
+        logger.add_input("Connection Angle", f"{math.degrees(self._angle_rad):.2f} degrees")
+
+        logger.add_calculation("_beta", self._beta)
+        logger.add_calculation("_alpha", self._alpha)
+        logger.add_calculation("Horizontal Plate Length (unrounded)", self._horizontal_plate_length)
+
         unrounded_vertical = (
             self._edge_dist * 2
             + ((self._n_rows - 1) * self._row_spacing)
             + 0.5 * si.inch
         )
+        logger.add_calculation("Vertical Plate Length (unrounded)", unrounded_vertical)
+
         vertical_dim = round_up_to_interval(
             number=unrounded_vertical, interval=0.25 * si.inch
         )
         horizontal_dim = round_up_to_interval(
             number=self._horizontal_plate_length, interval=0.25 * si.inch
         )
-        if debug:
-            print(f"  3. Calculate Final Dimensions:")
-            print(
-                f"     Vertical (unrounded) = 2*{self._edge_dist:.2f} + (({self._n_rows}-1)*{self._row_spacing:.2f}) + 0.5 = {unrounded_vertical:.4f}"
-            )
-            print(f'     -> Rounded to 0.25": {vertical_dim:.2f}')
-            print(
-                f"     Horizontal (unrounded) = {self._horizontal_plate_length:.4f}"
-            )
-            print(f'     -> Rounded to 0.25": {horizontal_dim:.2f}')
+
+        logger.add_output("Final Vertical Dimension", vertical_dim)
+        logger.add_output("Final Horizontal Dimension", horizontal_dim)
+        logger.display()
+
         return PlateDimensions(
             vertical=vertical_dim,
             horizontal=horizontal_dim,
@@ -654,39 +620,31 @@ class UFMCalculator:
 
     def get_loads_multipliers(self, debug: bool = False) -> LoadMultipliers:
         """Calculates and returns the load multipliers for the UFM interfaces."""
-        if debug:
-            self._print_debug_inputs()
-            print("\n--- Debugging get_loads_multipliers() ---")
-            print(f"  1. Calculate geometric properties (_alpha, _beta, _r):")
-            print(
-                f"     _beta = {self._edge_dist:.2f} + (({self._n_rows}-1) * {self._row_spacing:.2f}) / 2 = {self._beta:.4f}"
-            )
-            print(
-                f"     _alpha = ({self._beam_half_depth:.2f} + {self._beta:.2f}) * tan({math.degrees(self._angle_rad):.1f}°) - {self._support_half_depth:.2f} = {self._alpha:.4f}"
-            )
-            print(
-                f"     _r = sqrt(({self._alpha:.2f} + {self._support_half_depth:.2f})² + ({self._beam_half_depth:.2f} + {self._beta:.2f})²) = {self._r:.4f}"
-            )
-            print(f"  2. Calculate Final Multipliers:")
+        logger = DebugLogger("UFM Load Multipliers", debug)
+        logger.add_input("Beam Depth", self._beam_depth)
+        logger.add_input("Support Depth", self._support_depth)
+        logger.add_input("Edge Distance (vert)", self._edge_dist)
+        logger.add_input("Row Spacing", self._row_spacing)
+        logger.add_input("Number of Rows", self._n_rows)
+        logger.add_input("Connection Angle", f"{math.degrees(self._angle_rad):.2f} degrees")
+
+        logger.add_calculation("_beta", self._beta)
+        logger.add_calculation("_alpha", self._alpha)
+        logger.add_calculation("_r", self._r)
+
         multipliers = LoadMultipliers(
             shear_force_column_interface=self._beta / self._r,
             shear_force_beam_interface=self._beam_half_depth / self._r,
             normal_force_column=self._support_half_depth / self._r,
             normal_force_beam=self._alpha / self._r,
         )
-        if debug:
-            print(
-                f"     Shear (Column) = _beta / _r = {multipliers.shear_force_column_interface:.4f}"
-            )
-            print(
-                f"     Shear (Beam)   = beam_half_depth / _r = {multipliers.shear_force_beam_interface:.4f}"
-            )
-            print(
-                f"     Normal (Column)= support_half_depth / _r = {multipliers.normal_force_column:.4f}"
-            )
-            print(
-                f"     Normal (Beam)  = _alpha / _r = {multipliers.normal_force_beam:.4f}"
-            )
+
+        logger.add_output("Shear Force (Column Interface)", multipliers.shear_force_column_interface)
+        logger.add_output("Shear Force (Beam Interface)", multipliers.shear_force_beam_interface)
+        logger.add_output("Normal Force (Column)", multipliers.normal_force_column)
+        logger.add_output("Normal Force (Beam)", multipliers.normal_force_beam)
+        logger.display()
+
         return multipliers
 
 
@@ -724,22 +682,17 @@ class PlateTensileYieldingCalculator:
         design_capacity = (
             nominal_capacity * resistance_factor * self.loading_condition
         )
-        if debug:
-            print(f"\n--- DEBUG: Tensile Yielding ({interface_name}) ---")
-            print(f"  Inputs:")
-            print(f"    Yield Strength (Fy):     {self.Fy}")
-            print(f"    Gross Length:            {gross_length:.2f}")
-            print(f"    Thickness:               {self._thickness:.3f}")
-            print(f"  Calculation:")
-            print(
-                f'    Effective Length:        {effective_length:.2f} (Gross Length - 0.75")'
-            )
-            print(f"    Gross Area (Ag):         {gross_area:.4f}")
-            print(f"    Nominal Capacity (Pn):   {nominal_capacity:.2f}")
-            print(f"    Resistance Factor (φ):   {resistance_factor}")
-            print(f"    Loading Condition:       {self.loading_condition}")
-            print(f"  -------------------------------------------")
-            print(f"  Final Design Capacity (φPn): {design_capacity:.2f}")
+        logger = DebugLogger(f"Plate Tensile Yielding ({interface_name})", debug)
+        logger.add_input("Yield Strength (Fy)", self.Fy)
+        logger.add_input("Gross Length", gross_length)
+        logger.add_input("Thickness", self._thickness)
+        logger.add_input("Resistance Factor (φ)", resistance_factor)
+        logger.add_input("Loading Condition", self.loading_condition)
+        logger.add_calculation("Effective Length", effective_length)
+        logger.add_calculation("Gross Area (Ag)", gross_area)
+        logger.add_calculation("Nominal Capacity (Pn)", nominal_capacity)
+        logger.add_output("Final Design Capacity (φPn)", design_capacity)
+        logger.display()
         return design_capacity
 
     def calculate_capacity_horizontal(
@@ -790,76 +743,44 @@ class WebLocalYieldingCalculator:
             f"Object does not have any of the expected attributes: {potential_names}"
         )
 
-    def _print_debug_inputs(self, thickness_pl: float):
-        """A private helper to print a clean block of all initial input values."""
-        print("--- DEBUG: Web Local Yielding Inputs ---")
-        print(f"  Yield Strength (Fy):        {self._Fy}")
-        print(f"  Web Thickness (tw):         {self._tw:.3f}")
-        print(f"  Detailing Distance (k):     {self._k:.3f}")
-        print(f"  Member Depth (d):           {self._d:.2f}")
-        print(f"  Connection Length (lb):     {self._connection_length:.2f}")
-        print(f"  End Plate Thickness (tpl):  {thickness_pl:.3f}")
-
-    def _print_debug_calculation(
-        self, centroid, multiplier, bearing_len, Pn, phiRn, phi
-    ):
-        """A private helper to print the detailed step-by-step calculation."""
-        print("\n--- DEBUG: Calculation Steps ---")
-        print(f"  1. Calculate Connection Load Centroid:")
-        print(
-            f'     Centroid = lb/2 + clip + tpl = {self._connection_length/2:.2f} + 0.75" + {centroid - self._connection_length/2 - 0.75*si.inch:.2f} = {centroid:.2f}'
-        )
-        print(f"  2. Determine Multiplier:")
-        print(
-            f"     Condition: Is load centroid ({centroid:.2f}) <= member depth ({self._d:.2f})?"
-        )
-        print(f"     Result: {centroid <= self._d}, therefore multiplier = {multiplier}")
-        print(f"  3. Calculate Bearing Length:")
-        print(
-            f"     Bearing Length = {multiplier}*k + lb = ({multiplier}*{self._k:.2f}) + {self._connection_length:.2f} = {bearing_len:.2f}"
-        )
-        print(f"  4. Calculate Nominal Capacity (Pn):")
-        print(
-            f"     Pn = Fy * tw * Bearing Length = {self._Fy} * {self._tw:.3f} * {bearing_len:.2f} = {Pn:.2f}"
-        )
-        print(f"  5. Calculate Design Capacity (φRn):")
-        print(
-            f"     φRn = Pn * φ * loading_condition = {Pn:.2f} * {phi} * {self._loading_condition} = {phiRn:.2f}"
-        )
-
     def calculate_capacity(
         self, thickness_pl: float, resistance_factor: float = 1.0, debug: bool = False
     ) -> float:
         """
         Calculates the design web local yielding strength (φRn).
         """
-        if debug:
-            self._print_debug_inputs(thickness_pl)
+        logger = DebugLogger("Web Local Yielding", debug)
+        logger.add_input("Yield Strength (Fy)", self._Fy)
+        logger.add_input("Web Thickness (tw)", self._tw)
+        logger.add_input("Detailing Distance (k)", self._k)
+        logger.add_input("Member Depth (d)", self._d)
+        logger.add_input("Connection Length (lb)", self._connection_length)
+        logger.add_input("End Plate Thickness (tpl)", thickness_pl)
+        logger.add_input("Resistance Factor (φ)", resistance_factor)
+        logger.add_input("Loading Condition", self._loading_condition)
 
         clip_dist = 3 / 4 * si.inch
         connection_load_centroid = (
             self._connection_length / 2 + clip_dist + thickness_pl
         )
+        logger.add_calculation("Connection Load Centroid", connection_load_centroid)
 
         if connection_load_centroid <= self._d:
             multiplier_k = 2.5
         else:
             multiplier_k = 5.0
+        logger.add_calculation("Multiplier (k)", multiplier_k)
 
         bearing_length = (multiplier_k * self._k) + self._connection_length
+        logger.add_calculation("Bearing Length", bearing_length)
+
         nominal_capacity = self._Fy * self._tw * bearing_length
+        logger.add_calculation("Nominal Capacity (Pn)", nominal_capacity)
+
         design_capacity = (
             nominal_capacity * resistance_factor * self._loading_condition
         )
-
-        if debug:
-            self._print_debug_calculation(
-                connection_load_centroid,
-                multiplier_k,
-                bearing_length,
-                nominal_capacity,
-                design_capacity,
-                resistance_factor,
-            )
+        logger.add_output("Design Capacity (φRn)", design_capacity)
+        logger.display()
 
         return design_capacity
