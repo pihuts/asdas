@@ -65,11 +65,21 @@ column_endplate_connection = BoltConfiguration(
     edge_distance_vertical=3 * si.inch,
     edge_distance_horizontal=1.5 * si.inch,
     bolt_diameter=7/8 * si.inch,
-    bolt_grade=BOLT_GRADES["a325_x"],
+    bolt_grade=BOLT_GRADES["a490_x"],
     material=MATERIALS["a572_gr50"],
     connection_type="bracing",
     angle=47.2 * math.pi / 180
 )
+column_gusset_connection = BoltConfiguration(
+    row_spacing=3.0 * si.inch,
+    column_spacing=3.0 * si.inch,
+    n_rows=2,
+    n_columns=7,
+    edge_distance_vertical=2 * si.inch,
+    edge_distance_horizontal=1.5 * si.inch,
+    bolt_diameter=7/8 * si.inch,
+    bolt_grade=BOLT_GRADES["a325_x"], # Threads excluded
+    material=MATERIALS["a572_gr50"],)
 
 # Steel Members (Beam and Support)
 beam = SteelpyMemberFactory.create_steelpy_member(
@@ -157,3 +167,10 @@ web_crippling_capacity = web_local_crippling_checker.calculate_capacity(
     debug=True
 )
 print(f"\n   Web Local Crippling Capacity: {web_crippling_capacity.to('kip'):.2f}")
+
+# f) Bolt Shear
+print("\n6. Bolt Shear Calculator...")
+bolt_shear_checker = BoltShearCalculator( column_gusset_connection )
+bolt_shear_capacity_fnv = bolt_shear_checker.calculate_capacity_fnv(debug=True, number_of_shear_planes=1)
+bolt_shear_capacity_fnt = bolt_shear_checker.calculate_capacity_fnt(debug=True, number_of_shear_planes=1)
+

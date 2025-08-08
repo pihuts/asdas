@@ -57,7 +57,7 @@ class BoltShearCalculator:
         """Calculates the gross area of the bolt."""
         return (self.bolt_diameter**2 / 4) * math.pi
 
-    def calculate_capacity(
+    def calculate_capacity_fnv(
         self,
         number_of_shear_planes: int,
         resistance_factor: float = 0.75,
@@ -76,6 +76,32 @@ class BoltShearCalculator:
         # Nominal strength (Rn) = Fnv * Ab * Ns
         nominal_strength = self.fnv * self.bolt_area * number_of_shear_planes
         logger.add_calculation("Nominal Strength (Rn = Fnv * Ab * Ns)", nominal_strength)
+
+        # Design strength (φRn) = φ * Rn
+        design_strength = resistance_factor * nominal_strength
+        logger.add_output("Design Strength (φRn)", design_strength)
+
+        logger.display()
+        return design_strength
+    def calculate_capacity_fnt(
+        self,
+        number_of_shear_planes: int,
+        resistance_factor: float = 0.75,
+        debug: bool = False,
+    ) -> float:
+        """
+        Calculates the design tensile strength of the bolt.
+        """
+        logger = DebugLogger("Bolt Tensile Strength", debug)
+        fnt = self.connection.bolt_grade.Fnt
+        logger.add_input("Nominal Tensile Stress (Fnt)", fnt)
+        logger.add_input("Bolt Area (Ab)", self.bolt_area)
+        logger.add_input("Number of Shear Planes", number_of_shear_planes)
+        logger.add_input("Resistance Factor (φ)", resistance_factor)
+
+        # Nominal strength (Rn) = Fnt * Ab * Ns
+        nominal_strength = fnt * self.bolt_area * number_of_shear_planes
+        logger.add_calculation("Nominal Strength (Rn = Fnt * Ab * Ns)", nominal_strength)
 
         # Design strength (φRn) = φ * Rn
         design_strength = resistance_factor * nominal_strength
