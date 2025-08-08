@@ -20,11 +20,11 @@
 6. [Performance Guidelines](#-performance-guidelines)
 7. [Documentation Standards](#-documentation-standards)
 8. [Error Handling](#-error-handling)
-9. 
-[Code Smells to Avoid](#-code-smells-to-avoid)
-10. [Git & Version Control](#-git--version-control)
-11. [Monitoring & Logging](#-monitoring--logging)
-12. [Code Review Checklist](#-code-review-checklist)
+9. [Package Research & Integration](#-package-research--integration)
+10. [Code Smells to Avoid](#-code-smells-to-avoid)
+11. [Git & Version Control](#-git--version-control)
+12. [Monitoring & Logging](#-monitoring--logging)
+13. [Code Review Checklist](#-code-review-checklist)
 
 ---
 
@@ -904,6 +904,33 @@ async def general_exception_handler(request: Request, exc: Exception):
             }
         }
     )
+## 📦 Package Research & Integration
+
+Before integrating any new third-party package, the agent **MUST** check the `research/` directory for existing analysis files. This directory contains pre-generated, LLM-optimized documentation to ensure correct and safe integration.
+
+### Directory Structure
+```
+research/
+├─ {package_name}_README_LLM.md        # LLM-friendly documentation for the package.
+└─ {package_name}_requirements_report.md # Auto-extracted dependencies for the package.
+```
+
+### How to Use
+1.  **Identify the Package**: When a task requires using a package like `forallpeople` or `steelpy`.
+2.  **Locate Research Files**: Look for `{package_name}_README_LLM.md` and `{package_name}_requirements_report.md` in the `research/` directory.
+3.  **Consult `README_LLM.md`**: This file is the primary source of truth. It contains:
+    *   **Installation commands**.
+    *   **Core concepts and API usage**.
+    *   **Runnable code examples**.
+    *   **Common pitfalls and what to avoid**.
+    *   **A step-by-step tutorial**.
+4.  **Consult `requirements_report.md`**: Use this to understand the package's dependencies.
+5.  **Implement Safely**: Use the information from the research files to write code that correctly installs, configures, and uses the package, following all best practices and avoiding known pitfalls.
+
+By following this process, the agent can leverage pre-existing, detailed research to avoid common integration errors and ensure consistency.
+
+---
+
 🦨 Code Smells to Avoid
 1. Long Methods (> 20 lines)
 

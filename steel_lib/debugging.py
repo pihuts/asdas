@@ -1,4 +1,5 @@
 from typing import Any, Dict, Union
+from .si_units import si
 
 class DebugLogger:
     """
@@ -37,14 +38,21 @@ class DebugLogger:
             self.outputs[name] = value
 
     def _format_value(self, value: Any) -> str:
-        """Formats a value for display, handling forallpeople units."""
+        """
+        Formats a value for display, converting force units to 'kip' for
+        consistency.
+        """
         if hasattr(value, 'units'):
             try:
-                # Try to format as a number first
-                return f"{value:.4f}"
-            except (TypeError, ValueError):
-                # Fallback for non-numeric unit objects
-                return str(value)
+                # Try to convert to kip; if it works, it's a force.
+                return f"{value.to('kip'):.4f}"
+            except Exception:  # Catches conversion errors if not a force
+                try:
+                    # If not a force, format as a standard number
+                    return f"{value:.4f}"
+                except (TypeError, ValueError):
+                    # Fallback for non-numeric unit objects
+                    return str(value)
         if isinstance(value, float):
             return f"{value:.4f}"
         return str(value)

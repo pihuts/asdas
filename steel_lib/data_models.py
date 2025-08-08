@@ -1,8 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Optional, Any, Literal
-import forallpeople as si
+from .si_units import si
 
-si.environment('structural', top_level=False)
 
 @dataclass(frozen=True)
 class Material:

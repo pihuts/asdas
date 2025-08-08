@@ -1,5 +1,5 @@
 import math
-import forallpeople as si
+from steel_lib.si_units import si
 from steelpy import aisc
 
 from steel_lib.data_models import (
@@ -22,10 +22,10 @@ from steel_lib.calculations import (
     UFMCalculator,
     PlateTensileYieldingCalculator,
     WebLocalYieldingCalculator,
+    WebLocalCrippingCalculator,
 )
 
 # Set up the unit system
-si.environment('structural', top_level=False)
 
 # --- 1. Define Members and Connections ---
 
@@ -148,6 +148,12 @@ web_yield_capacity = web_yield_checker.calculate_capacity(
     thickness_pl=end_plate_column.t,
     debug=True
 )
-print(f"\n   Web Local Yielding Capacity: {web_yield_capacity:.2f}")
+print(f"\n   Web Local Yielding Capacity: {web_yield_capacity.to('kip'):.2f}")
 
 print("\n--- All Calculations Complete ---")
+web_local_crippling_checker = WebLocalCrippingCalculator(beam, gusset_weld)
+web_crippling_capacity = web_local_crippling_checker.calculate_capacity(
+    thickness_pl=end_plate_column.t,
+    debug=True
+)
+print(f"\n   Web Local Crippling Capacity: {web_crippling_capacity.to('kip'):.2f}")
