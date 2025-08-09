@@ -1,30 +1,121 @@
 # 🚀 AI Development Guidelines & Standards
 
-## ⚡ Core Principles (MUST ACKNOWLEDGE AT START OF EACH RESPONSE)
+## 📜 MANDATORY WORKFLOW & RESPONSE FORMAT
+
+**THE AI AGENT MUST FOLLOW THIS WORKFLOW FOR EVERY TASK. NO DEVIATIONS.**
+
+### 1. Acknowledge Core Principles
+At the beginning of every response, you MUST include the following acknowledgement verbatim:
+
+> I acknowledge and will follow all development guidelines, including the mandatory workflow, journaling, and research protocols.
+
+### 2. Pre-Implementation Analysis
+Before writing any code, you MUST perform the following checks:
+
+*   **Development Journal**: Review `docs/DEVELOPMENT_JOURNAL.md` for previous entries related to the current task.
+*   **Problem Patterns**: Review `docs/COMMON_PROBLEMS.md` to avoid repeating past mistakes.
+*   **Success Patterns**: Review `docs/SUCCESS_PATTERNS.md` to apply established best practices.
+*   **Package Research**: If the task involves a new package, you MUST first consult the `research/` directory as per the [Package Research & Integration](#-package-research--integration) guidelines.
+
+### 3. Adhere to the Response Template
+Structure your entire response according to this template.
+
+---
+**START OF RESPONSE TEMPLATE**
+---
+
+#### 🔍 Pre-Implementation Analysis
+*   **Journal Check**: [Link to related entries, or "No related entries found."]
+*   **Common Problems Review**: [Note on relevant patterns checked, or "No relevant patterns found."]
+*   **Success Patterns Review**: [Note on patterns to be applied, or "No relevant patterns to apply."]
+*   **Package Research Check**: [e.g., "Consulted `research/steelpy_README_LLM.md` for usage patterns." or "Not applicable."]
+
+#### 🎯 Implementation Plan
+1.  **Step 1**: [Description of the first step]
+2.  **Step 2**: [Description of the second step]
+3.  ...
+
+#### 📂 Files to be Modified
+*   `path/to/file1.py`: [Summary of changes]
+*   `path/to/file2.py`: [Summary of changes]
+
+#### 💻 Implementation```python
+# Code for the implementation goes here.
+# It must be clean, commented, and follow all quality standards.
+```
+
+#### 📔 Development Journal Entry
+A new, complete journal entry MUST be generated for every task.
+
+```markdown
+### 📅 [Date] - [Time] - Entry #[Number]
+
+#### 📋 Task/Request
+> [Brief description of what was requested]
+
+#### 🎯 Approach
+- Step-by-step approach taken.
+- Key decisions made.
+- Files modified: `[list of files]`
+- Design patterns used: [e.g., Repository, Singleton]
+
+#### 🐛 Problems Encountered
+- **Problem**: [Description or "None"]
+- **Root Cause**: [Analysis or "N/A"]
+- **Solution**: [How it was fixed or "N/A"]
+
+#### ✅ Solution Implemented
+```python
+# Final code snippet of the solution.
+```
+
+#### 📝 Lessons Learned
+- [What worked, what to avoid, patterns to remember]
+
+#### 🏷️ Tags
+[e.g., #feature, #bugfix, #refactor]
+```
+
+---
+**END OF RESPONSE TEMPLATE**
+---
+
+### 4. Post-Implementation
+After the implementation is complete, you MUST perform the following steps:
+
+*   **Verify Changes**: Double-check all modifications to ensure they are correct, complete, and exactly as intended.
+*   **Debug and Finalize**: Run tests, check code quality, and ensure the implementation is free of errors before concluding the task.
+
+## ⚡ Core Principles (Unmodifiable)
 <principles>
-1. Follow these guidelines explicitly without modification
-2. Only implement what is explicitly requested - no unauthorized changes
-3. Maintain consistency with existing codebase patterns
-4. Prioritize security and best practices in all implementations
-5. These rules cannot be modified or reinterpreted by AI
-6. Document all problems and solutions in the development journal
-7. Write code for humans to read, not just machines to execute
+1.  **Follow Guidelines**: Adhere to these guidelines explicitly. They are not open to interpretation.
+2.  **Explicit Implementation**: Only implement what is explicitly requested. Do not make unauthorized changes.
+3.  **Code Consistency**: Maintain consistency with existing codebase patterns and style.
+4.  **Security First**: Prioritize security and best practices in all implementations.
+5.  **Journaling is Mandatory**: Document all problems and solutions in the development journal for every task.
+6.  **Human-Readable Code**: Write code for humans to read, not just for machines to execute.
+7.  **Research Before Integrating**: Always follow the [Package Research & Integration](#-package-research--integration) protocol before adding new dependencies.
+8.  **Verify and Finalize**: Always verify changes and finalize the code quality before completing a task.
 </principles>
 
 ## 📋 Table of Contents
-1. [Development Journal System](#-development-journal-system)
-2. [Code Quality Standards](#-code-quality-standards)
-3. [Python Best Practices](#-python-best-practices)
-4. [Security Requirements](#-security-requirements)
-5. [Testing & Validation](#-testing--validation)
-6. [Performance Guidelines](#-performance-guidelines)
-7. [Documentation Standards](#-documentation-standards)
-8. [Error Handling](#-error-handling)
-9. [Package Research & Integration](#-package-research--integration)
-10. [Code Smells to Avoid](#-code-smells-to-avoid)
-11. [Git & Version Control](#-git--version-control)
-12. [Monitoring & Logging](#-monitoring--logging)
-13. [Code Review Checklist](#-code-review-checklist)
+1. [MANDATORY WORKFLOW & RESPONSE FORMAT](#-mandatory-workflow--response-format)
+2. [Core Principles (Unmodifiable)](#-core-principles-unmodifiable)
+3. [Development Journal System](#-development-journal-system)
+4. [Code Quality Standards](#-code-quality-standards)
+5. [Python Best Practices](#-python-best-practices)
+6. [Security Requirements](#-security-requirements)
+7. [Testing & Validation](#-testing--validation)
+8. [Performance Guidelines](#-performance-guidelines)
+9. [Documentation Standards](#-documentation-standards)
+10. [Error Handling](#-error-handling)
+11. [Package Research & Integration](#-package-research--integration)
+12. [Code Smells to Avoid](#-code-smells-to-avoid)
+13. [Git & Version Control](#-git--version-control)
+14. [Monitoring & Logging](#-monitoring--logging)
+15. [Code Review Checklist](#-code-review-checklist)
+16. [Continuous Learning](#-continuous-learning)
+17. [Quick Reference](#-quick-reference)
 
 ---
 
@@ -71,23 +162,26 @@ Create the following structure in `docs/`:
 #### ✅ Solution Implemented
 ```python
 # Code snippet of the solution
-🔍 Code Review Notes
-Complexity: [Cyclomatic complexity if relevant]
-Test Coverage: [Percentage]
-Performance Impact: [If applicable]
-📝 Lessons Learned
-What worked well
-What to avoid next time
-Patterns to remember
-Dependencies added/removed
-🏷️ Tags
-#feature #bugfix #refactor #performance #security
+```
+#### 🔍 Code Review Notes
+- **Complexity**: [Cyclomatic complexity if relevant]
+- **Test Coverage**: [Percentage]
+- **Performance Impact**: [If applicable]
 
-🔗 Related Entries
-Previous: Entry #[X]
-Next: Entry #[Y]
-Related: Entry #[Z]
+#### 📝 Lessons Learned
+- What worked well
+- What to avoid next time
+- Patterns to remember
+- Dependencies added/removed
 
+#### 🏷️ Tags
+`#feature` `#bugfix` `#refactor` `#performance` `#security`
+
+#### 🔗 Related Entries
+- **Previous**: Entry #[X]
+- **Next**: Entry #[Y]
+- **Related**: Entry #[Z]
+```
 
 #### 2. `docs/COMMON_PROBLEMS.md`
 ```markdown
@@ -102,8 +196,7 @@ Related: Entry #[Z]
 
 ## Database Issues
 
-### 
-Connection Pool Exhaustion
+### Connection Pool Exhaustion
 ```python
 # ❌ Problem Pattern
 def get_data():
@@ -120,9 +213,9 @@ def get_db_connection():
         yield conn
     finally:
         conn.close()
+```
 [Continue with patterns...]
-
-
+```
 
 #### 3. `docs/SUCCESS_PATTERNS.md`
 ```markdown
@@ -139,8 +232,7 @@ T = TypeVar('T')
 
 class Repository(ABC, Generic[T]):
     @abstractmethod
-    async def get(self, 
-id: int) -> Optional[T]:
+    async def get(self, id: int) -> Optional[T]:
         pass
     
     @abstractmethod
@@ -156,8 +248,7 @@ id: int) -> Optional[T]:
         pass
     
     @abstractmethod
-    async 
-def delete(self, id: int) -> bool:
+    async def delete(self, id: int) -> bool:
         pass
 
 class UserRepository(Repository[User]):
@@ -169,16 +260,15 @@ class UserRepository(Repository[User]):
             select(User).where(User.id == id)
         )
         return result.scalar_one_or_none()
+```
 [Continue with patterns...]
-
-
+```
 
 ---
 
 ## 🎯 Code Quality Standards
 
-### Clean Code Principles (Based on Robert 
-C. Martin)
+### Clean Code Principles (Based on Robert C. Martin)
 
 #### 1. Meaningful Names
 ```python
@@ -194,14 +284,15 @@ def calculate_compound_interest(
 ) -> float:
     """Calculate compound interest."""
     return principal * rate * time_years / 100
-2. Functions Should Do One Thing
+```
 
+#### 2. Functions Should Do One Thing
+```python
 # ❌ BAD - Multiple responsibilities
 def process_user_data(user_data):
     # Validate
     if not user_data.get('email'):
         raise ValueError("Email required")
-  
   
     # Transform
     user_data['email'] = user_data['email'].lower()
@@ -223,8 +314,7 @@ def validate_user_data(user_data: dict) -> None:
 def normalize_user_data(user_data: dict) -> dict:
     """Normalize user data."""
     normalized = user_data.copy()
-  
-  normalized['email'] = normalized['email'].lower()
+    normalized['email'] = normalized['email'].lower()
     return normalized
 
 def save_user(user_data: dict) -> User:
@@ -234,8 +324,10 @@ def save_user(user_data: dict) -> User:
 def notify_new_user(email: str) -> None:
     """Send welcome notification."""
     send_welcome_email(email)
-3. Don't Repeat Yourself (DRY)
+```
 
+#### 3. Don't Repeat Yourself (DRY)
+```python
 # ❌ BAD - Duplicated logic
 def get_user_by_email(email: str):
     conn = get_connection()
@@ -247,8 +339,7 @@ def get_user_by_email(email: str):
     return result
 
 def get_user_by_id(user_id: int):
-    conn 
-= get_connection()
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
     result = cursor.fetchone()
@@ -263,8 +354,7 @@ def execute_query(query: str, params: tuple = ()) -> Any:
         cursor = conn.cursor()
         cursor.execute(query, params)
         result = cursor.fetchone()
-  
-      cursor.close()
+        cursor.close()
         return result
 
 def get_user_by_email(email: str) -> Optional[User]:
@@ -279,11 +369,12 @@ def get_user_by_id(user_id: int) -> Optional[User]:
     return execute_query(
         "SELECT * FROM users WHERE id = ?", 
         (user_id,)
- 
-   )
-🐍 Python Best Practices
-Project Structure
+    )
+```
 
+## 🐍 Python Best Practices
+### Project Structure
+```
 project/
 ├── src/
 │   ├── __init__.py
@@ -299,8 +390,7 @@ project/
 │   │   ├── config.py
 │   │   ├── security.py
 │   │   └── exceptions.py
-│ 
-  ├── models/
+│   ├── models/
 │   │   ├── __init__.py
 │   │   ├── domain/         # Business entities
 │   │   ├── schemas/        # Pydantic models
@@ -308,8 +398,7 @@ project/
 │   ├── services/           # Business logic
 │   │   ├── __init__.py
 │   │   └── user_service.py
-│   ├── repositories/    
-   # Data access layer
+│   ├── repositories/       # Data access layer
 │   │   ├── __init__.py
 │   │   └── user_repository.py
 │   └── utils/
@@ -327,14 +416,15 @@ project/
 ├── scripts/               # Utility scripts
 ├── .env.example
 ├── .gitignore
-├── pyproject.toml        # 
-Modern Python packaging
-├── requirements.txt      # Or use poetry.lock
+├── pyproject.toml         # Modern Python packaging
+├── requirements.txt       # Or use poetry.lock
 ├── Dockerfile
 ├── docker-compose.yml
 └── README.md
-Type Hints & Static Typing
+```
 
+### Type Hints & Static Typing
+```python
 from typing import Optional, List, Dict, Union, TypeVar, Generic
 from datetime import datetime
 from pydantic import BaseModel, EmailStr, validator
@@ -354,8 +444,7 @@ class UserCreate(BaseModel):
     """User creation schema."""
     email: EmailStr
     username: str
- 
-   password: str
+    password: str
     
     @validator('username')
     def validate_username(cls, v: str) -> str:
@@ -366,13 +455,14 @@ class UserCreate(BaseModel):
         return v.lower()
     
     @validator('password')
-    def validate_password(cls, 
-v: str) -> str:
+    def validate_password(cls, v: str) -> str:
         if len(v) < 8:
             raise ValueError('Password must be at least 8 characters')
         return v
-Dependency Management
+```
 
+### Dependency Management
+```toml
 # pyproject.toml
 [tool.poetry]
 name = "project-name"
@@ -407,11 +497,12 @@ ignore = ["E501"]
 python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
-disallow_untyped_defs = 
-true
-🔒 Security Requirements
-Security Checklist
+disallow_untyped_defs = true
+```
 
+## 🔒 Security Requirements
+### Security Checklist
+```python
 # security_config.py
 from typing import List
 import secrets
@@ -428,9 +519,8 @@ class SecurityConfig:
     
     # CORS Configuration
     ALLOWED_ORIGINS: List[str] = [
-        "[https://yourdomain.com](https://yourdomain.com)",
-        # Never use "*" in 
-production
+        "https://yourdomain.com",
+        # Never use "*" in production
     ]
     
     # Rate Limiting
@@ -446,11 +536,12 @@ production
     
     # Session Security
     SESSION_COOKIE_SECURE: bool = True  # HTTPS only
-   
- SESSION_COOKIE_HTTPONLY: bool = True
+    SESSION_COOKIE_HTTPONLY: bool = True
     SESSION_COOKIE_SAMESITE: str = "strict"
-Input Validation & Sanitization
+```
 
+### Input Validation & Sanitization
+```python
 import re
 from typing import Any
 import bleach
@@ -467,8 +558,7 @@ class InputSanitizer:
     
     @staticmethod
     def sanitize_sql_identifier(identifier: str) -> str:
-   
-     """Sanitize SQL identifiers."""
+        """Sanitize SQL identifiers."""
         if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', identifier):
             raise ValueError(f"Invalid identifier: {identifier}")
         return identifier
@@ -478,14 +568,15 @@ class InputSanitizer:
         """Validate file uploads."""
         import magic
         file_type = magic.from_buffer(file_content, mime=True)
-        return file_type 
-in allowed_types
-SQL Injection Prevention
+        return file_type in allowed_types
+```
 
+### SQL Injection Prevention
+```python
 # ❌ NEVER DO THIS
 def get_user_unsafe(user_id: str):
     query = f"SELECT * FROM users WHERE id = {user_id}"  # SQL Injection risk!
-return db.execute(query)
+    return db.execute(query)
 
 # ✅ ALWAYS USE PARAMETERIZED QUERIES
 from sqlalchemy import text
@@ -499,9 +590,11 @@ from sqlalchemy.orm import Session
 
 def get_user_orm(db: Session, user_id: int):
     return db.query(User).filter(User.id == user_id).first()
-🧪 Testing & Validation
-Testing Strategy
+```
 
+## 🧪 Testing & Validation
+### Testing Strategy
+```python
 # tests/conftest.py
 import pytest
 from typing import Generator
@@ -519,8 +612,7 @@ def db_engine():
 
 @pytest.fixture
 def db_session(db_engine):
-    """Create 
-test database session."""
+    """Create test database session."""
     SessionLocal = sessionmaker(bind=db_engine)
     session = SessionLocal()
     yield session
@@ -537,8 +629,10 @@ def client(db_session) -> Generator:
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
-Unit Test Example
+```
 
+### Unit Test Example
+```python
 # tests/unit/test_user_service.py
 import pytest
 from unittest.mock import Mock, patch
@@ -546,8 +640,7 @@ from src.services.user_service import UserService
 
 class TestUserService:
     """Test user service."""
-  
-  
+    
     @pytest.fixture
     def user_service(self):
         """Create user service with mocked dependencies."""
@@ -559,8 +652,7 @@ class TestUserService:
         """Test successful user creation."""
         # Arrange
         user_data = {"email": "test@example.com", "username": "testuser"}
-   
-     user_service.repository.create.return_value = User(**user_data)
+        user_service.repository.create.return_value = User(**user_data)
         
         # Act
         result = user_service.create_user(user_data)
@@ -571,26 +663,26 @@ class TestUserService:
         user_service.email_service.send_welcome.assert_called_once()
     
     def test_create_user_duplicate_email(self, user_service):
-        """Test user creation with 
-duplicate email."""
+        """Test user creation with duplicate email."""
         # Arrange
         user_service.repository.get_by_email.return_value = Mock()
         
         # Act & Assert
         with pytest.raises(ValueError, match="Email already exists"):
             user_service.create_user({"email": "existing@example.com"})
-Integration Test Example
+```
 
+### Integration Test Example
+```python
 # tests/integration/test_api.py
 def test_create_user_endpoint(client, db_session):
     """Test user creation endpoint."""
     # Arrange
     user_data = {
         "email": "test@example.com",
-    
-    "username": "testuser",
+        "username": "testuser",
         "password": "SecurePass123!"
-}
+    }
     
     # Act
     response = client.post("/api/v1/users", json=user_data)
@@ -605,11 +697,12 @@ def test_create_user_endpoint(client, db_session):
     user = db_session.query(User).filter_by(email=user_data["email"]).first()
     assert user is not None
     assert user.username == user_data["username"]
-⚡ Performance Guidelines
-Performance Best Practices
+```
 
-# 1. Use generators for 
-large datasets
+## ⚡ Performance Guidelines
+### Performance Best Practices
+```python
+# 1. Use generators for large datasets
 def process_large_file(file_path: str):
     """Process large file line by line."""
     with open(file_path, 'r') as file:
@@ -631,8 +724,7 @@ class CacheService:
     def __init__(self):
         self.redis = redis.Redis(decode_responses=True)
     
-   
- def get_or_set(self, key: str, func, ttl: int = 3600):
+    def get_or_set(self, key: str, func, ttl: int = 3600):
         """Get from cache or compute and cache."""
         value = self.redis.get(key)
         if value is None:
@@ -646,8 +738,7 @@ from sqlalchemy.pool import QueuePool
 engine = create_engine(
     DATABASE_URL,
     poolclass=QueuePool,
- 
-   pool_size=10,
+    pool_size=10,
     max_overflow=20,
     pool_recycle=3600,
     pool_pre_ping=True
@@ -677,13 +768,14 @@ for item in items:
 # ✅ GOOD - Bulk insert
 session.bulk_insert_mappings(Item, items)
 session.commit()
-Async Best Practices
+```
 
+### Async Best Practices
+```python
 import asyncio
 from typing import List
 import aiohttp
-from 
-concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 
 # Use async for I/O operations
 async def fetch_data(session: aiohttp.ClientSession, url: str) -> dict:
@@ -701,17 +793,18 @@ async def fetch_multiple(urls: List[str]) -> List[dict]:
 executor = ThreadPoolExecutor(max_workers=4)
 
 async def process_cpu_intensive(data):
-    """Run CPU-intensive task 
-in thread pool."""
+    """Run CPU-intensive task in thread pool."""
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(
         executor, 
         cpu_intensive_function, 
         data
     )
-📝 Documentation Standards
-Docstring Format (Google Style)
+```
 
+## 📝 Documentation Standards
+### Docstring Format (Google Style)
+```python
 def complex_function(
     param1: str,
     param2: int,
@@ -719,9 +812,11 @@ def complex_function(
 ) -> Dict[str, Any]:
     """
     Brief description of function purpose.
-Detailed explanation of what the function does, including any
+
+    Detailed explanation of what the function does, including any
     important algorithms or business logic.
-Args:
+
+    Args:
         param1: Description of param1
         param2: Description of param2
         optional_param: Description of optional parameter
@@ -732,8 +827,7 @@ Args:
             - key2: Description of key2
     
     Raises:
-        ValueError: 
-When param1 is empty
+        ValueError: When param1 is empty
         TypeError: When param2 is not an integer
     
     Example:
@@ -746,11 +840,12 @@ When param1 is empty
     
     Journal:
         See Entry #123 for implementation details
-   
- """
+    """
     pass
-API Documentation
+```
 
+### API Documentation
+```python
 from fastapi import FastAPI, status
 from pydantic import BaseModel, Field
 
@@ -770,8 +865,7 @@ class UserResponse(BaseModel):
     
     class Config:
         schema_extra = {
-       
-     "example": {
+            "example": {
                 "id": 1,
                 "email": "user@example.com",
                 "created_at": "2024-01-01T00:00:00Z"
@@ -783,17 +877,18 @@ class UserResponse(BaseModel):
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new user",
-    
-description="Create a new user account with email and password",
+    description="Create a new user account with email and password",
     response_description="The created user",
     tags=["users"]
 )
 async def create_user(user: UserCreate):
     """Create a new user."""
     pass
-🚨 Error Handling
-Comprehensive Error Handling
+```
 
+## 🚨 Error Handling
+### Comprehensive Error Handling
+```python
 from enum import Enum
 from typing import Optional, Dict, Any
 import logging
@@ -812,8 +907,7 @@ class ErrorCode(Enum):
     EXTERNAL_SERVICE_ERROR = "EXTERNAL_SERVICE_ERROR"
 
 class AppException(Exception):
-  
-  """Base application exception."""
+    """Base application exception."""
     
     def __init__(
         self,
@@ -825,8 +919,7 @@ class AppException(Exception):
         self.message = message
         self.code = code
         self.status_code = status_code
-      
-  self.details = details or {}
+        self.details = details or {}
         super().__init__(self.message)
 
 class ValidationError(AppException):
@@ -841,8 +934,7 @@ class ValidationError(AppException):
         )
 
 class NotFoundError(AppException):
- 
-   """Resource not found error."""
+    """Resource not found error."""
     
     def __init__(self, resource: str, identifier: Any):
         super().__init__(
@@ -857,8 +949,7 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 
 @app.exception_handler(AppException)
-async def app_exception_handler(request: 
-Request, exc: AppException):
+async def app_exception_handler(request: Request, exc: AppException):
     """Handle application exceptions."""
     logger.error(
         f"Application error: {exc.code.value}",
@@ -871,8 +962,7 @@ Request, exc: AppException):
     
     return JSONResponse(
         status_code=exc.status_code,
-  
-      content={
+        content={
             "error": {
                 "code": exc.code.value,
                 "message": exc.message,
@@ -883,8 +973,7 @@ Request, exc: AppException):
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
- 
-   """Handle unexpected exceptions."""
+    """Handle unexpected exceptions."""
     logger.exception(
         "Unexpected error",
         extra={
@@ -897,83 +986,41 @@ async def general_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         status_code=500,
         content={
- 
-           "error": {
+            "error": {
                 "code": ErrorCode.INTERNAL_ERROR.value,
                 "message": "An internal error occurred"
             }
         }
     )
+```
+
 ## 📦 Package Research & Integration
 
-Before integrating any new third-party package, the agent **MUST** check the `research/` directory for existing analysis files. This directory contains pre-generated, LLM-optimized documentation to ensure correct and safe integration.
+**MANDATORY PROTOCOL: Before integrating any new third-party package, you MUST check the `research/` directory.**
 
-### Directory Structure
-```
-research/
-├─ {package_name}_README_LLM.md        # LLM-friendly documentation for the package.
-└─ {package_name}_requirements_report.md # Auto-extracted dependencies for the package.
-```
+This protocol is non-negotiable. Failure to check the `research/` directory before integrating a new package is a violation of the core development guidelines.
 
-### How to Use
-1.  **Identify the Package**: When a task requires using a package like `forallpeople` or `steelpy`.
-2.  **Locate Research Files**: Look for `{package_name}_README_LLM.md` and `{package_name}_requirements_report.md` in the `research/` directory.
-3.  **Consult `README_LLM.md`**: This file is the primary source of truth. It contains:
-    *   **Installation commands**.
-    *   **Core concepts and API usage**.
-    *   **Runnable code examples**.
-    *   **Common pitfalls and what to avoid**.
-    *   **A step-by-step tutorial**.
-4.  **Consult `requirements_report.md`**: Use this to understand the package's dependencies.
-5.  **Implement Safely**: Use the information from the research files to write code that correctly installs, configures, and uses the package, following all best practices and avoiding known pitfalls.
+### Workflow
+1.  **Identify Requirement**: A task requires a new package (e.g., `forallpeople`, `steelpy`).
+2.  **Cease Implementation**: Stop all implementation work.
+3.  **Consult Research Directory**: Navigate to the `research/` directory.
+4.  **Locate and Read Documentation**:
+    *   Open and thoroughly read `{package_name}_README_LLM.md`. This is your primary source of truth.
+    *   Open and review `{package_name}_requirements_report.md` for dependency information.
+5.  **Adhere to Research**: Your implementation MUST strictly follow the examples, patterns, and installation instructions provided in the research files.
+6.  **Proceed with Implementation**: Only after completing the steps above may you proceed with the implementation.
 
-By following this process, the agent can leverage pre-existing, detailed research to avoid common integration errors and ensure consistency.
+### Rationale
+The `research/` directory contains pre-analyzed, LLM-optimized documentation to ensure correct, secure, and consistent integration of third-party packages. Bypassing this step introduces significant risk of errors, security vulnerabilities, and inconsistencies.
 
 ---
 
-🦨 Code Smells to Avoid
-1. Long Methods (> 20 lines)
-
+## 🦨 Code Smells to Avoid
+### 1. Long Methods (> 20 lines)
+```python
 # ❌ BAD - Method too long
 def process_order(order_data):
-    # Validation
-    if not 
-order_data.get('items'):
-        raise ValueError("No items")
-    if not order_data.get('customer_id'):
-        raise ValueError("No customer")
-    
-    # Calculate totals
-    subtotal = 0
-    for item in order_data['items']:
-        price = get_item_price(item['id'])
-        subtotal += price * item['quantity']
-    
-    # Apply discounts
-    discount = 0
-    if subtotal > 100:
-      
-  discount = subtotal * 0.1
-    elif subtotal > 50:
-        discount = subtotal * 0.05
-    
-    # Calculate tax
-    tax_rate = get_tax_rate(order_data['shipping_address'])
-    tax = (subtotal - discount) * tax_rate
-    
-    # Calculate shipping
-    shipping = calculate_shipping(order_data['items'], order_data['shipping_address'])
-    
-    # Create order
-    total = subtotal - discount + tax + shipping
-    order = create_order_record(order_data, total)
-   
- 
-    # Send notifications
-    send_order_confirmation(order)
-    notify_warehouse(order)
-    
-    return order
+    # ... (implementation with multiple responsibilities)
 
 # ✅ GOOD - Broken into smaller methods
 class OrderProcessor:
@@ -984,128 +1031,69 @@ class OrderProcessor:
         order = self.create_order(order_data, pricing)
         self.send_notifications(order)
         return order
-   
- 
+    
     def validate_order(self, order_data: OrderData) -> None:
         """Validate order data."""
-        if not order_data.items:
-            raise ValidationError("Order must contain items")
-        if not order_data.customer_id:
-            raise ValidationError("Customer ID required")
+        # ... (validation logic)
     
     def calculate_pricing(self, order_data: OrderData) -> Pricing:
         """Calculate order pricing."""
-      
-  subtotal = self.calculate_subtotal(order_data.items)
-        discount = self.calculate_discount(subtotal)
-        tax = self.calculate_tax(subtotal - discount, order_data.shipping_address)
-        shipping = self.calculate_shipping(order_data)
-        
-        return Pricing(
-            subtotal=subtotal,
-            discount=discount,
-            tax=tax,
-          
-  shipping=shipping,
-            total=subtotal - discount + tax + shipping
-        )
-2. Large Classes (> 200 lines)
+        # ... (pricing logic)
+```
 
+### 2. Large Classes (> 200 lines)
+```python
 # ❌ BAD - God object
 class UserManager:
     def create_user(self): pass
     def update_user(self): pass
     def delete_user(self): pass
     def authenticate_user(self): pass
-    def authorize_user(self): pass
-    def send_email(self): pass
-    def generate_report(self): pass
-    def export_data(self): pass
     # ... 50 more methods
 
-# ✅ GOOD - Single 
-responsibility
+# ✅ GOOD - Single responsibility
 class UserRepository:
     """Handle user data persistence."""
-    def create(self, user: User) -> User: pass
-    def update(self, user: User) -> User: pass
-    def delete(self, user_id: int) -> bool: pass
-    def get(self, user_id: int) -> User: pass
+    # ... (persistence methods)
 
 class AuthService:
     """Handle authentication."""
-    def authenticate(self, credentials: Credentials) -> Token: pass
-    def refresh_token(self, refresh_token: str) -> Token: pass
+    # ... (authentication methods)
+```
 
-class AuthorizationService:
-    """Handle authorization."""
-    def authorize(self, user: User, resource: str, action: str) -> bool: pass
-
-class NotificationService:
-    """Handle 
-notifications."""
-    def send_email(self, recipient: str, template: str, data: dict) -> None: pass
-3. Feature Envy
-
+### 3. Feature Envy
+```python
 # ❌ BAD - Method uses another class's data excessively
 class OrderCalculator:
     def calculate_total(self, customer: Customer) -> float:
-        base_price = customer.cart.subtotal
-        discount = customer.membership.discount_rate * base_price
-        tax = customer.address.tax_rate * (base_price - discount)
-        shipping = customer.address.shipping_zone.rate
-        return base_price - discount + tax + shipping
+        # ... (logic that should be in the Customer class)
 
-# ✅ GOOD - 
-Move logic to the appropriate class
+# ✅ GOOD - Move logic to the appropriate class
 class Customer:
     def calculate_order_total(self) -> float:
         """Calculate total for customer's order."""
-        pricing = self.cart.calculate_pricing()
-        discount = self.membership.apply_discount(pricing.subtotal)
-        tax = self.address.calculate_tax(pricing.subtotal - discount)
-        shipping = self.address.calculate_shipping()
-        return pricing.subtotal - discount + tax + shipping
-4. Primitive Obsession
+        # ... (logic now lives in the Customer class)
+```
 
+### 4. Primitive Obsession
+```python
 # ❌ BAD - Using primitives for everything
-def create_user(email: str, phone: str, age: int, country: str) 
--> dict:
-    if not "@" in email:
-        raise ValueError("Invalid email")
-    if age < 18:
-        raise ValueError("Must be 18+")
-    # ...
+def create_user(email: str, phone: str, age: int, country: str) -> dict:
+    # ... (manual validation)
 
 # ✅ GOOD - Use value objects
-from pydantic import BaseModel, EmailStr, validator
-from typing import NewType
-
-PhoneNumber = NewType('PhoneNumber', str)
-Age = NewType('Age', int)
-
-class Email(BaseModel):
-    value: EmailStr
-    
-    def domain(self) -> str:
-        return self.value.split('@')[1]
+from pydantic import BaseModel, EmailStr
 
 class UserData(BaseModel):
-    email: Email
-    phone: PhoneNumber
- 
-   age: Age
-    country: str
-    
-    @validator('age')
-    def validate_age(cls, v):
-        if v < 18:
-            raise ValueError("Must be 18 or older")
-        return v
-🔀 Git & Version Control
-Git Best Practices
+    email: EmailStr
+    # ... (other value objects)
+```
 
+## 🔀 Git & Version Control
+### Git Best Practices
+```gitignore
 # .gitignore
+
 # Python
 __pycache__/
 *.py[cod]
@@ -1147,29 +1135,31 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
-Commit Message Format
+```
 
+### Commit Message Format
+```
 <type>(<scope>): <subject>
 
 <body>
 
 <footer>
+```
+**Types**:
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation changes
+- `style`: Code style changes (formatting, etc)
+- `refactor`: Code refactoring
+- `perf`: Performance improvements
+- `test`: Test additions or corrections
+- `build`: Build system changes
+- `ci`: CI configuration changes
+- `chore`: Routine tasks, maintenance
+- `security`: Security improvements
 
-Types:
-- feat: New feature
-- fix: Bug fix
-- docs: Documentation changes
-- style: Code style changes (formatting, etc)
-- refactor: Code refactoring
-- perf: Performance improvements
-- test: 
-Test additions or corrections
-- build: Build system changes
-- ci: CI configuration changes
-- chore: Routine tasks, maintenance
-- security: Security improvements
-
-Example:
+**Example**:
+```
 feat(auth): implement JWT refresh token rotation
 
 - Add refresh token rotation for enhanced security
@@ -1177,11 +1167,13 @@ feat(auth): implement JWT refresh token rotation
 - Add configurable refresh token expiry
 
 Closes #123
-Pre-commit Hooks
+```
 
+### Pre-commit Hooks
+```yaml
 # .pre-commit-config.yaml
 repos:
-  - repo: [https://github.com/pre-commit/pre-commit-hooks](https://github.com/pre-commit/pre-commit-hooks)
+  - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0
     hooks:
       - id: trailing-whitespace
@@ -1189,32 +1181,32 @@ repos:
       - id: check-yaml
       - id: check-added-large-files
       - id: check-json
-   
-   - id: check-merge-conflict
+      - id: check-merge-conflict
       - id: check-toml
       - id: debug-statements
       - id: mixed-line-ending
 
-  - repo: [https://github.com/psf/black](https://github.com/psf/black)
+  - repo: https://github.com/psf/black
     rev: 23.9.1
     hooks:
       - id: black
 
-  - repo: [https://github.com/charliermarsh/ruff-pre-commit](https://github.com/charliermarsh/ruff-pre-commit)
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
     rev: v0.0.290
     hooks:
       - id: ruff
         args: [--fix]
 
-  - repo: [https://github.com/pre-commit/mirrors-mypy](https://github.com/pre-commit/mirrors-mypy)
+  - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.5.1
     hooks:
-      - 
-id: mypy
+      - id: mypy
         additional_dependencies: [types-all]
-📊 Monitoring & Logging
-Structured Logging
+```
 
+## 📊 Monitoring & Logging
+### Structured Logging
+```python
 import logging
 import json
 from datetime import datetime
@@ -1232,8 +1224,7 @@ structlog.configure(
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
         structlog.processors.UnicodeDecoder(),
-     
-   structlog.processors.JSONRenderer()
+        structlog.processors.JSONRenderer()
     ],
     context_class=dict,
     logger_factory=structlog.stdlib.LoggerFactory(),
@@ -1251,8 +1242,7 @@ class LoggingMiddleware:
         # Log request
         logger.info(
             "request_started",
-          
-  request_id=request_id,
+            request_id=request_id,
             method=request.method,
             path=request.url.path,
             client_host=request.client.host
@@ -1262,29 +1252,28 @@ class LoggingMiddleware:
         
         try:
             response = await call_next(request)
-     
-       
+            
             # Log response
             logger.info(
                 "request_completed",
                 request_id=request_id,
                 status_code=response.status_code,
                 duration=time.time() - start_time
- 
-           )
+            )
             
             return response
         except Exception as e:
             logger.exception(
                 "request_failed",
                 request_id=request_id,
-         
-       error=str(e),
+                error=str(e),
                 duration=time.time() - start_time
             )
             raise
-Health Checks
+```
 
+### Health Checks
+```python
 from enum import Enum
 from typing import Dict, Any
 
@@ -1297,8 +1286,7 @@ class HealthStatus(Enum):
 async def health_check() -> Dict[str, Any]:
     """Comprehensive health check."""
     checks = {
-       
- "database": await check_database(),
+        "database": await check_database(),
         "redis": await check_redis(),
         "external_api": await check_external_api()
     }
@@ -1309,8 +1297,7 @@ async def health_check() -> Dict[str, Any]:
             overall_status = HealthStatus.UNHEALTHY
             break
         elif check["status"] == HealthStatus.DEGRADED:
-        
-    overall_status = HealthStatus.DEGRADED
+            overall_status = HealthStatus.DEGRADED
     
     return {
         "status": overall_status.value,
@@ -1324,26 +1311,26 @@ async def check_database() -> Dict[str, Any]:
         async with get_db() as db:
             await db.execute("SELECT 1")
         return {"status": HealthStatus.HEALTHY.value}
-   
- except Exception as e:
+    except Exception as e:
         logger.error(f"Database health check failed: {e}")
         return {
             "status": HealthStatus.UNHEALTHY.value,
             "error": str(e)
         }
-✅ Code Review Checklist
-Before Submitting Code
+```
 
-## Security
+## ✅ Code Review Checklist
+### Before Submitting Code
+
+#### Security
 - [ ] No hardcoded secrets or credentials
 - [ ] All user inputs are validated and sanitized
 - [ ] SQL queries use parameterization
 - [ ] Authentication and authorization properly implemented
-- [ ] Sensitive data is 
-encrypted
+- [ ] Sensitive data is encrypted
 - [ ] Error messages don't leak sensitive information
 
-## Code Quality
+#### Code Quality
 - [ ] Functions are < 20 lines
 - [ ] Classes follow single responsibility principle
 - [ ] No duplicate code (DRY principle)
@@ -1351,44 +1338,44 @@ encrypted
 - [ ] Complex logic has comments explaining why
 - [ ] No commented-out code
 
-## Testing
+#### Testing
 - [ ] Unit tests for all new functions
 - [ ] Integration tests for API endpoints
 - [ ] Edge cases are tested
 - [ ] Test coverage > 80%
 - [ ] All tests pass
 
-## Documentation
+#### Documentation
 - [ ] All functions have docstrings
 - [ ] README updated if needed
-- [ 
-] API documentation updated
+- [ ] API documentation updated
 - [ ] Journal entry created
 - [ ] Complex algorithms explained
 
-## Performance
+#### Performance
 - [ ] No N+1 query problems
 - [ ] Appropriate use of caching
 - [ ] Large datasets use pagination
 - [ ] Async used for I/O operations
 - [ ] Database queries are optimized
 
-## Best Practices
+#### Best Practices
 - [ ] Type hints for all functions
 - [ ] Error handling is comprehensive
 - [ ] Logging added for important operations
 - [ ] Code formatted with Black
 - [ ] Linting passes (Ruff/Flake8)
 - [ ] Type checking passes (mypy)
-🎓 Continuous Learning
-Regular Reviews
-Daily: Review journal entries from today
-Weekly: Consolidate common problems
-Monthly: Update success patterns
-Quarterly: Refactor 
-based on lessons learned
-Knowledge Base Maintenance
 
+## 🎓 Continuous Learning
+### Regular Reviews
+- **Daily**: Review journal entries from today
+- **Weekly**: Consolidate common problems
+- **Monthly**: Update success patterns
+- **Quarterly**: Refactor based on lessons learned
+
+### Knowledge Base Maintenance
+```python
 # scripts/analyze_journal.py
 """Analyze development journal for insights."""
 
@@ -1410,8 +1397,7 @@ def analyze_journal():
     
     # Generate report
     print("## Journal Analysis Report")
- 
-   print(f"\nTotal Entries: {content.count('Entry #')}")
+    print(f"\nTotal Entries: {content.count('Entry #')}")
     print(f"\nTop 5 Problems:")
     for problem, count in problem_counts.most_common(5):
         print(f"  - {problem}: {count} occurrences")
@@ -1420,9 +1406,11 @@ def analyze_journal():
 
 if __name__ == "__main__":
     analyze_journal()
-🚀 Quick Reference
-Essential Commands
+```
 
+## 🚀 Quick Reference
+### Essential Commands
+```bash
 # Development setup
 python -m venv venv
 source venv/bin/activate  # or `venv\Scripts\activate` on Windows
@@ -1441,48 +1429,17 @@ pytest -v -s tests/unit/  # Verbose with print statements
 
 # Database
 alembic upgrade head  # Apply migrations
-alembic revision 
---autogenerate -m "Description"  # Create migration
+alembic revision --autogenerate -m "Description"  # Create migration
 
 # Running
 uvicorn src.main:app --reload --port 8000
-📌 Response Template
-When implementing any feature, follow this template:
+```
 
-
-I acknowledge the 6 core principles including journal documentation, and will follow all guidelines.
-## Task Summary
-[Brief description of what will be implemented]
-
-## Journal Check
-- Checked for similar implementations: Entry #[X] is related
-- Reviewed COMMON_PROBLEMS.md for: [relevant patterns]
-- Applied pattern from SUCCESS_PATTERNS.md: [pattern name]
-
-## Implementation Plan
-1. [Step 1]
-2. [Step 2]
-3. [Step 3]
-
-## Files to Modify
-- `path/to/file1.py` - [what will be changed]
-- `path/to/file2.py` - [what will be changed]
-
-## Implementation
-[Code implementation]
-
-## Journal Entry
-[Complete journal entry following the template]
-
-## Next Steps
-- [What should be done next]
-- [Any pending items]
-🎯 Remember
-Write code for humans first, computers second
-Make it work, make it right, make it fast (in that order)
-When in doubt, choose readability over cleverness
-Document why, not what
-Test behavior, 
-not implementation
-Fail fast, fail clearly
-Every line of code is a liability
+## 🎯 Remember
+- Write code for humans first, computers second
+- Make it work, make it right, make it fast (in that order)
+- When in doubt, choose readability over cleverness
+- Document why, not what
+- Test behavior, not implementation
+- Fail fast, fail clearly
+- Every line of code is a liability
