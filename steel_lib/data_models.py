@@ -72,11 +72,11 @@ class Plate:
         is calculated automatically after instantiation.
         """
         return cls(
-            t=dimensions.thickness * si.inch,
+            t=dimensions.thickness, # Already has units
             material=material,
             loading_condition=loading_condition,
-            length=dimensions.vertical * si.inch,
-            width=dimensions.horizontal * si.inch,
+            length=dimensions.vertical, # Already has units
+            width=dimensions.horizontal, # Already has units
             clipping=clipping,
         )
     def set_dimensions(self, dimensions: "PlateDimensions"):
@@ -89,8 +89,14 @@ class Plate:
         Args:
             dimensions: A PlateDimensions object containing the geometric properties.
         """
-        self.length = dimensions.vertical * si.inch
-        self.width = dimensions.horizontal * si.inch
+        self.width = dimensions.vertical - self.clipping
+        self.length = dimensions.horizontal - self.clipping
+        # After updating dimensions, we must also update the geometry dataclass
+        self.geometry = GeometricProperties(
+            along_length=self.gross_area_length,
+            along_width=self.gross_area_width,
+            total=self.gross_area_length or self.gross_area_width
+        )
 
     @property
     def Fy(self) -> si.ksi: return self.material.Fy
@@ -101,11 +107,11 @@ class Plate:
     @property
     def gross_area_length(self) :
         """Calculates the gross area of the plate."""
-        return (self.length - self.clipping) * self.t if self.length else None
+        return (self.length ) * self.t if self.length else None
     @property
     def gross_area_width(self):
         """Calculates the gross area of the plate."""
-        return (self.width - self.clipping) * self.t if self.width else None
+        return (self.width) * self.t if self.width else None
 @dataclass(frozen=True)
 class BoltGrade:
     """Represents the nominal strength properties of a bolt material."""
@@ -127,24 +133,6 @@ class BoltConfiguration:
     angle: float = 0.0
 from steelpy import aisc
 from typing import Any, Type
-
-@dataclass
-class SteelpyMemberFactory:
-    """Factory for creating steelpy members."""
-
-    @classmethod
-    def create_steelpy_member(
-        cls, section_class: Type, section_name: str, material, shape_type: str,
-        loading_condition: int = 1,
-    ) -> Any:
-        """Creates a steelpy member, assigning material and loading properties."""
-        section = getattr(section_class, section_name)
-        section.add_property("Fy", material.Fy)
-        section.add_property("Fu", material.Fu)
-        section.add_property("E", material.E)
-        section.add_property("Type", shape_type)
-        section.loading_condition = loading_condition
-        return section
 
 @dataclass(frozen=True)
 class WeldElectrode:
@@ -192,17 +180,30 @@ class ConnectionFactory:
     """Factory for creating Connection objects."""
 
     @staticmethod
-    def create_bolted_connection(*args, **kwargs) -> Connection:
-        """Creates a bolted connection."""
+    def create_bolted_connection(component: ConnectionComponent, *args, **kwargs) -> Connection:
+        """
+        Creates a bolted connection, requiring the component to be specified.
+        """
+        # Pop override_Ag if present, as it belongs to the Connection, not BoltConfiguration
+        override_ag = kwargs.pop('override_Ag', None)
+        
         return Connection(
             connection_type="bolted",
-            configuration=BoltConfiguration(*args, **kwargs)
+            component=component,
+            configuration=BoltConfiguration(*args, **kwargs),
+            override_Ag=override_ag
         )
 
     @staticmethod
-    def create_welded_connection(*args, **kwargs) -> Connection:
-        """Creates a welded connection."""
+    def create_welded_connection(component: ConnectionComponent, *args, **kwargs) -> Connection:
+        """
+        Creates a welded connection, requiring the component to be specified.
+        """
+        override_ag = kwargs.pop('override_Ag', None)
+
         return Connection(
             connection_type="welded",
-            configuration=WeldConfiguration(*args, **kwargs)
+            component=component,
+            configuration=WeldConfiguration(*args, **kwargs),
+            override_Ag=override_ag
         )

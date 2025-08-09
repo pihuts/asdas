@@ -132,16 +132,13 @@ class BoltShearCalculator:
     """
     def __init__(self, connection: Connection):
         """
-        Initializes the calculator with the connection configuration.
+        Initializes the calculator with a Connection object.
+        Assumes a 'bolted' connection configuration.
         """
-        if connection.connection_type != "bolted":
-            raise ValueError("BoltShearCalculator only supports bolted connections.")
-        
-        self.connection: BoltConfiguration = connection.configuration
-        self.bolt_diameter = self.connection.bolt_diameter
+        self.bolt_config: BoltConfiguration = connection.configuration
+        self.bolt_diameter = self.bolt_config.bolt_diameter
         self.bolt_area = self._calculate_bolt_area()
-        # Automatically get the nominal shear stress from the bolt grade
-        self.fnv = self.connection.bolt_grade.Fnv
+        self.fnv = self.bolt_config.bolt_grade.Fnv
 
     def _calculate_bolt_area(self) -> float:
         """Calculates the gross area of the bolt."""
@@ -161,15 +158,15 @@ class BoltShearCalculator:
         logger.add_input("Bolt Diameter (d)", self.bolt_diameter)
         logger.add_input("Bolt Area (Ab)", self.bolt_area)
         logger.add_input("Number of Shear Planes", number_of_shear_planes)
-        logger.add_input("Resistance Factor (φ)", resistance_factor)
+        logger.add_input("Resistance Factor (phi)", resistance_factor)
 
         # Nominal strength (Rn) = Fnv * Ab * Ns
         nominal_strength = self.fnv * self.bolt_area * number_of_shear_planes
         logger.add_calculation("Nominal Strength (Rn = Fnv * Ab * Ns)", nominal_strength)
 
-        # Design strength (φRn) = φ * Rn
+        # Design strength (phiRn) = phi * Rn
         design_strength = resistance_factor * nominal_strength
-        logger.add_output("Design Strength (φRn)", design_strength)
+        logger.add_output("Design Strength (phiRn)", design_strength)
 
         logger.display()
         return design_strength
@@ -183,19 +180,19 @@ class BoltShearCalculator:
         Calculates the design tensile strength of the bolt.
         """
         logger = DebugLogger("Bolt Tensile Strength", debug)
-        fnt = self.connection.bolt_grade.Fnt
+        fnt = self.bolt_config.bolt_grade.Fnt
         logger.add_input("Nominal Tensile Stress (Fnt)", fnt)
         logger.add_input("Bolt Area (Ab)", self.bolt_area)
         logger.add_input("Number of Shear Planes", number_of_shear_planes)
-        logger.add_input("Resistance Factor (φ)", resistance_factor)
+        logger.add_input("Resistance Factor (phi)", resistance_factor)
 
         # Nominal strength (Rn) = Fnt * Ab * Ns
         nominal_strength = fnt * self.bolt_area * number_of_shear_planes
         logger.add_calculation("Nominal Strength (Rn = Fnt * Ab * Ns)", nominal_strength)
 
-        # Design strength (φRn) = φ * Rn
+        # Design strength (phiRn) = phi * Rn
         design_strength = resistance_factor * nominal_strength
-        logger.add_output("Design Strength (φRn)", design_strength)
+        logger.add_output("Design Strength (phiRn)", design_strength)
 
         logger.display()
         return design_strength
@@ -222,9 +219,9 @@ class TensileYieldingCalculator:
         logger.add_input("Yield Strength (Fy)", self.Fy)
         logger.add_input(f"Applicable Gross Area (Ag) for {self.connection.component.name}", self.Ag)
         logger.add_input("Loading Condition", self.loading_condition)
-        logger.add_input("Resistance Factor (φ)", resistance_factor)
+        logger.add_input("Resistance Factor (phi)", resistance_factor)
         logger.add_calculation("Nominal Strength (Rn = Fy * Ag)", nominal_strength)
-        logger.add_output("Design Strength (φRn)", design_strength)
+        logger.add_output("Design Strength (phiRn)", design_strength)
         logger.display()
 
         return design_strength
@@ -234,11 +231,9 @@ class TensileRuptureCalculator:
     Calculates the tensile rupture capacity of a member.
     """
     def __init__(self, member: Any, connection: Connection):
-        if connection.connection_type != "bolted":
-            raise ValueError("TensileRuptureCalculator only supports bolted connections.")
         self.member = member
         self.connection = connection
-        self.bolt_config: BoltConfiguration = connection.configuration
+        self.bolt_config = connection.configuration
         self.Fu = self.member.Fu
         self.loading_condition = getattr(self.member, 'loading_condition', 1)
 
@@ -277,9 +272,9 @@ class TensileRuptureCalculator:
         logger.add_input(f"Net Area (An) for {self.connection.component.name}", An)
         logger.add_input("Shear Lag Factor (Ubs)", Ubs)
         logger.add_input("Loading Condition", self.loading_condition)
-        logger.add_input("Resistance Factor (φ)", resistance_factor)
+        logger.add_input("Resistance Factor (phi)", resistance_factor)
         logger.add_calculation("Nominal Strength (Rn = Fu * An)", nominal_strength)
-        logger.add_output("Design Strength (φRn)", design_strength)
+        logger.add_output("Design Strength (phiRn)", design_strength)
         logger.display()
 
         return design_strength
@@ -300,61 +295,44 @@ class BlockShearCalculator:
         thickness: float = None,
     ):
         self.member = member
-        if connection.connection_type != "bolted":
-            raise ValueError("BlockShearCalculator only supports bolted connections.")
-        self.connection: BoltConfiguration = connection.configuration
+        self.bolt_config: BoltConfiguration = connection.configuration
         self.loading_orientation = loading_orientation
         self.loading_condition = loading_condition
 
         # CORRECTED: _get_member_thickness now always returns a unit-aware value
-        self.thickness = thickness if thickness is not None else self._get_member_thickness()
-        self.bolt_hole_diameter = self.connection.bolt_diameter + (1/8) * si.inch
+        self.thickness = thickness if thickness is not None else get_applicable_thickness(member, connection)
+        self.bolt_hole_diameter = self.bolt_config.bolt_diameter + (1/8) * si.inch
 
         if self.loading_orientation == "Shear" or self.member.Type == "L":
             self.failure_pattern = "L"
         else:
             self.failure_pattern = "U"
 
-    def _get_member_thickness(self) -> float:
-        """
-        Determines thickness from various member types and ensures it has units.
-        """
-        if isinstance(self.member, Plate):
-            # For Plate, .t already has units
-            return self.member.t
-        elif hasattr(self.member, 't'): # For steelpy L-shapes
-            # Steelpy's .t is a float; we must add units.
-            return self.member.t * si.inch
-        elif hasattr(self.member, 'tw'): # For steelpy W-shape webs
-            # Steelpy's .tw is a float; we must add units.
-            return self.member.tw * si.inch
-        raise AttributeError("Member has no recognizable thickness attribute.")
-
     # --- Calculation methods now correctly include loading_condition ---
     def _calculate_l_shear_yield_path(self) -> float:
-        spacing, rows , edge_dist = (self.connection.row_spacing, self.connection.n_rows, self.connection.edge_distance_vertical) if self.loading_orientation == "Shear" else (self.connection.column_spacing, self.connection.n_columns, self.connection.edge_distance_horizontal)
+        spacing, rows , edge_dist = (self.bolt_config.row_spacing, self.bolt_config.n_rows, self.bolt_config.edge_distance_vertical) if self.loading_orientation == "Shear" else (self.bolt_config.column_spacing, self.bolt_config.n_columns, self.bolt_config.edge_distance_horizontal)
         length = spacing * (rows - 1) + edge_dist
         # Apply loading_condition to the area calculation as in the original code
         return length * self.thickness * self.loading_condition
 
     def _calculate_l_shear_rupture_path(self) -> float:
         gross_area = self._calculate_l_shear_yield_path()
-        rows = self.connection.n_rows if self.loading_orientation == "Shear" else self.connection.n_columns
+        rows = self.bolt_config.n_rows if self.loading_orientation == "Shear" else self.bolt_config.n_columns
         # Hole deduction must also be scaled by loading_condition
         hole_area_deduction = (rows - 0.5) * self.bolt_hole_diameter * self.thickness * self.loading_condition
         return gross_area - hole_area_deduction
 
     def _calculate_l_tension_rupture_path(self) -> float:
         if self.loading_orientation == "Axial":
-            spacing, rows, edge_dist = self.connection.row_spacing, self.connection.n_rows, self.connection.edge_distance_vertical
+            spacing, rows, edge_dist = self.bolt_config.row_spacing, self.bolt_config.n_rows, self.bolt_config.edge_distance_vertical
         else:
-            spacing, rows, edge_dist = self.connection.column_spacing, self.connection.n_columns, self.connection.edge_distance_horizontal
+            spacing, rows, edge_dist = self.bolt_config.column_spacing, self.bolt_config.n_columns, self.bolt_config.edge_distance_horizontal
 
         net_length = (spacing * (rows - 1) + edge_dist) - ((rows - 0.5) * self.bolt_hole_diameter)
         return net_length * self.thickness * self.loading_condition
 
     def _calculate_u_tension_rupture_path(self) -> float:
-        spacing, rows = self.connection.row_spacing, self.connection.n_rows
+        spacing, rows = self.bolt_config.row_spacing, self.bolt_config.n_rows
         net_length = (spacing * (rows - 1)) - ((rows - 1) * self.bolt_hole_diameter)
         return net_length * self.thickness * self.loading_condition
 
@@ -385,12 +363,12 @@ class BlockShearCalculator:
         logger.add_input("Gross Shear Area (Agv)", shear_yield_component)
         logger.add_input("Net Shear Area (Anv)", shear_rupture_component)
         logger.add_input("Net Tension Area (Ant)", tension_rupture_component)
-        logger.add_input("Resistance Factor (φ)", resistance_factor)
+        logger.add_input("Resistance Factor (phi)", resistance_factor)
         logger.add_calculation("Shear Yielding (0.6*Fy*Agv)", (0.6 * Fy * shear_yield_component))
         logger.add_calculation("Shear Rupture (0.6*Fu*Anv)", (0.6 * Fu * shear_rupture_component))
         logger.add_calculation("Tension Rupture (Ubs*Fu*Ant)", tension_force)
         logger.add_calculation("Nominal Capacity (Rn)", nominal_capacity)
-        logger.add_output("Design Capacity (φRn)", design_capacity)
+        logger.add_output("Design Capacity (phiRn)", design_capacity)
         logger.display()
 
         return design_capacity
@@ -402,46 +380,30 @@ class ConnectionCapacityCalculator:
     """
     def __init__(self, member: Any, connection: Connection, loading_orientation: Literal["Axial", "Shear"]):
         self.member = member
-        if connection.connection_type != "bolted":
-            raise ValueError("ConnectionCapacityCalculator only supports bolted connections.")
-        self.connection: BoltConfiguration = connection.configuration
+        self.bolt_config: BoltConfiguration = connection.configuration
         self.loading_orientation = loading_orientation
 
         # Extract common properties
         self.Fu = self.member.Fu
-        self.thickness = self._get_member_thickness()
-        self.bolt_diameter = self.connection.bolt_diameter
-        self.bolt_diameter_nominal = self.connection.bolt_diameter + (1/16) * si.inch
+        self.thickness = get_applicable_thickness(member, connection)
+        self.bolt_diameter = self.bolt_config.bolt_diameter
+        self.bolt_diameter_nominal = self.bolt_config.bolt_diameter + (1/16) * si.inch
 
         # Per AISC, standard hole diameter is bolt diameter + 1/8"
-        self.hole_diameter = self.connection.bolt_diameter + (1/8) * si.inch
+        self.hole_diameter = self.bolt_config.bolt_diameter + (1/8) * si.inch
 
         # Determine geometry based on loading orientation (DRY principle)
         if self.loading_orientation == "Axial":
-            self.longitudinal_spacing = self.connection.column_spacing
-            self.longitudinal_edge_dist = self.connection.edge_distance_horizontal
-            self.bolts_per_line = self.connection.n_columns
-            self.num_lines = self.connection.n_rows
+            self.longitudinal_spacing = self.bolt_config.column_spacing
+            self.longitudinal_edge_dist = self.bolt_config.edge_distance_horizontal
+            self.bolts_per_line = self.bolt_config.n_columns
+            self.num_lines = self.bolt_config.n_rows
         else: # Shear
-            self.longitudinal_spacing = self.connection.row_spacing
-            self.longitudinal_edge_dist = self.connection.edge_distance_vertical
-            self.bolts_per_line = self.connection.n_rows
-            self.num_lines = self.connection.n_columns
+            self.longitudinal_spacing = self.bolt_config.row_spacing
+            self.longitudinal_edge_dist = self.bolt_config.edge_distance_vertical
+            self.bolts_per_line = self.bolt_config.n_rows
+            self.num_lines = self.bolt_config.n_columns
 
-    def _get_member_thickness(self) -> float:
-        """
-        Determines thickness from various member types and ensures it has units.
-        """
-        if isinstance(self.member, Plate):
-            # For Plate, .t should have units from the data model
-            return self.member.t
-        elif hasattr(self.member, 't'): # For steelpy L-shapes
-            # Assuming factory now provides units
-            return self.member.t
-        elif hasattr(self.member, 'tw'): # For steelpy W-shape webs
-            # Assuming factory now provides units
-            return self.member.tw
-        raise AttributeError("Member has no recognizable thickness attribute.")
 
     def _calculate_lc_inner(self) -> float:
         """Calculates clear distance for an inner bolt."""
@@ -462,8 +424,7 @@ class ConnectionCapacityCalculator:
         """
         # 1. Get the shear capacity of a single bolt (this is an upper limit)
         # Create a new Connection object to pass to the shear checker
-        shear_connection = Connection(connection_type="bolted", configuration=self.connection)
-        shear_checker = BoltShearCalculator(shear_connection)
+        shear_checker = BoltShearCalculator(self.bolt_config)
         bolt_shear_strength = shear_checker.calculate_capacity_fnv(number_of_shear_planes, resistance_factor=0.75) # Use nominal for comparison
 
         # 2. Calculate clear distances
@@ -497,7 +458,7 @@ class ConnectionCapacityCalculator:
         logger.add_input("Longitudinal Edge Dist", self.longitudinal_edge_dist)
         logger.add_input("Bolts per Line", self.bolts_per_line)
         logger.add_input("Number of Lines", self.num_lines)
-        logger.add_input("Resistance Factor (φ)", resistance_factor)
+        logger.add_input("Resistance Factor (phi)", resistance_factor)
         logger.add_input("Loading Condition Multiplier", loading_condition)
         logger.add_calculation("Inner Bolt Clear Distance (lc_in)", lc_in)
         logger.add_calculation("Outer Bolt Clear Distance (lc_out)", lc_out)
@@ -508,7 +469,7 @@ class ConnectionCapacityCalculator:
         logger.add_calculation("Governing Strength (Inner)", r_nominal_inner)
         logger.add_calculation("Governing Strength (Outer)", r_nominal_outer)
         logger.add_calculation("Total Nominal Strength (Rn)", total_nominal_capacity)
-        logger.add_output("Final Design Capacity (φRn)", design_capacity)
+        logger.add_output("Final Design Capacity (phiRn)", design_capacity)
         logger.display()
 
         return design_capacity
@@ -522,14 +483,12 @@ class TensileYieldWhitmore:
     def __init__(self, member: Any, connection: Connection):
         """Initializes the calculator with the member and connection objects."""
         self.member = member
-        if connection.connection_type != "bolted":
-            raise ValueError("TensileYieldWhitmore only supports bolted connections.")
-        self.connection: BoltConfiguration = connection.configuration
+        self.bolt_config: BoltConfiguration = connection.configuration
         self.Fy = self.member.Fy
         self.loading_condition = getattr(self.member, "loading_condition", 1)
-        self.n_cols = self.connection.n_columns
-        self.spacing_col = self.connection.column_spacing
-        self.spacing_row = self.connection.row_spacing
+        self.n_cols = self.bolt_config.n_columns
+        self.spacing_col = self.bolt_config.column_spacing
+        self.spacing_row = self.bolt_config.row_spacing
         self.t = self._get_member_thickness()
 
     def _get_member_thickness(self) -> float:
@@ -575,12 +534,12 @@ class TensileYieldWhitmore:
         logger = DebugLogger("Whitmore Section Tensile Yield", debug)
         logger.add_input("Yield Strength (Fy)", self.Fy)
         logger.add_input("Member Thickness (t)", self.t)
-        logger.add_input("Resistance Factor (φ)", resistance_factor)
+        logger.add_input("Resistance Factor (phi)", resistance_factor)
         logger.add_input("Loading Condition Multiplier", self.loading_condition)
         logger.add_calculation("Effective Length (Lw)", self.length_whitmore)
         logger.add_calculation("Effective Area (Aw)", self.area_whitmore)
         logger.add_calculation("Nominal Capacity (Rn)", nominal_capacity)
-        logger.add_output("Final Design Capacity (φRn)", design_capacity)
+        logger.add_output("Final Design Capacity (phiRn)", design_capacity)
         logger.display()
         return design_capacity
 
@@ -591,12 +550,9 @@ class CompressionBucklingCalculator:
     """
 
     def __init__(self, member: Any, connection: Connection):
-        """Initializes the calculator with the member and connection objects."""
+        """Initializes the calculator with the member and connection."""
         self.member = member
-        if connection.connection_type != "bolted":
-            raise ValueError("CompressionBucklingCalculator only supports bolted connections.")
-        self.connection: BoltConfiguration = connection.configuration
-        self.connection_type = self.connection.connection_type
+        self.bolt_config: BoltConfiguration = connection.configuration
         self.Fy = self.member.Fy
         self.t = self._get_member_thickness()
 
@@ -618,11 +574,9 @@ class CompressionBucklingCalculator:
 
     @property
     def k(self) -> float:
-        return (
-            0.5
-            if self.connection_type == "bracing"
-            else 1.2
-        )
+        # This calculator is specific to bracing connections, so k is fixed.
+        # A more advanced implementation might take this as an argument.
+        return 0.5
 
     @property
     def r(self):
@@ -641,11 +595,11 @@ class CompressionBucklingCalculator:
         logger.add_input("r", self.r)
         logger.add_input("Slenderness Ratio", self.slenderness_ratio)
         logger.add_input("Fy", self.Fy)
-        logger.add_input("Resistance Factor (φ)", resistance_factor)
+        logger.add_input("Resistance Factor (phi)", resistance_factor)
 
         if self.slenderness_ratio <= 25:
             capacity = self.Fy * 20.9 * si.inch**2 * resistance_factor
-            logger.add_output("Design Capacity (φRn)", capacity)
+            logger.add_output("Design Capacity (phiRn)", capacity)
             logger.display()
             return capacity
         else:
@@ -660,14 +614,16 @@ class UFMCalculator:
     comprehensive debug mode to show all intermediate values.
     """
 
-    def __init__(self, beam: Any, support: Any, endplate: Any, connection: Any):
+    def __init__(self, beam: Any, support: Any, endplate: Any, connection: Connection):
+        config: BoltConfiguration = connection.configuration
+
         self._beam_depth = self._get_attribute(beam, ["d", "depth"])
         self._support_depth = self._get_attribute(support, ["d", "depth"])
         self._end_plate_thickness = self._get_attribute(endplate, ["t", "thickness"])
-        self._edge_dist = connection.edge_distance_vertical
-        self._row_spacing = connection.row_spacing
-        self._n_rows = connection.n_rows
-        self._angle_rad = connection.angle
+        self._edge_dist = config.edge_distance_vertical
+        self._row_spacing = config.row_spacing
+        self._n_rows = config.n_rows
+        self._angle_rad = config.angle
 
     def _get_attribute(self, obj: Any, potential_names: list[str]) -> float:
         for name in potential_names:
@@ -794,14 +750,14 @@ class PlateTensileYieldingCalculator:
         """
         Initializes the calculator by extracting required data from the member object.
         """
-        if not hasattr(member, "dimensions"):
+        if not all(hasattr(member, attr) for attr in ['length', 'width', 't']):
             raise AttributeError(
-                "The provided 'member' object must have a '.dimensions' attribute."
+                "The provided Plate object must have 'length', 'width', and 't' attributes."
             )
-        self.dimensions: PlateDimensions = member.dimensions
-        self.Fy = member.Fy
-        self.loading_condition = getattr(member, "loading_condition", 1)
-        self._thickness = self.dimensions.thickness
+        self.member = member
+        self.Fy = self.member.Fy
+        self.loading_condition = getattr(self.member, "loading_condition", 1)
+        self._thickness = self.member.t
 
     def _calculate_capacity_for_path(
         self,
@@ -821,12 +777,12 @@ class PlateTensileYieldingCalculator:
         logger.add_input("Yield Strength (Fy)", self.Fy)
         logger.add_input("Gross Length", gross_length)
         logger.add_input("Thickness", self._thickness)
-        logger.add_input("Resistance Factor (φ)", resistance_factor)
+        logger.add_input("Resistance Factor (phi)", resistance_factor)
         logger.add_input("Loading Condition", self.loading_condition)
         logger.add_calculation("Effective Length", effective_length)
         logger.add_calculation("Gross Area (Ag)", gross_area)
         logger.add_calculation("Nominal Capacity (Pn)", nominal_capacity)
-        logger.add_output("Final Design Capacity (φPn)", design_capacity)
+        logger.add_output("Final Design Capacity (phiPn)", design_capacity)
         logger.display()
         return design_capacity
 
@@ -835,7 +791,7 @@ class PlateTensileYieldingCalculator:
     ) -> float:
         """Calculates the design tensile yield strength along the HORIZONTAL path."""
         return self._calculate_capacity_for_path(
-            gross_length=self.dimensions.horizontal,
+            gross_length=self.member.width,
             interface_name="Horizontal",
             resistance_factor=resistance_factor,
             debug=debug,
@@ -846,7 +802,7 @@ class PlateTensileYieldingCalculator:
     ) -> float:
         """Calculates the design tensile yield strength along the VERTICAL path."""
         return self._calculate_capacity_for_path(
-            gross_length=self.dimensions.vertical,
+            gross_length=self.member.length,
             interface_name="Vertical",
             resistance_factor=resistance_factor,
             debug=debug,
@@ -859,13 +815,19 @@ class WebLocalYieldingCalculator:
     with a clear separation between input and calculation debugging.
     """
 
-    def __init__(self, member: Any, connection: Any):
-        """Initializes the calculator by extracting all necessary primitive values."""
+    def __init__(self, member: Any, connection: Connection, end_plate: Plate):
+        """
+        Initializes the calculator by extracting all necessary primitive values.
+        The end_plate thickness is now derived directly from the end_plate object.
+        """
+        config: WeldConfiguration = connection.configuration
+
         self._Fy = member.Fy
         self._tw = self._get_attribute(member, ["tw"])
         self._k = self._get_attribute(member, ["k", "k_det"])
         self._d = self._get_attribute(member, ["d", "depth"])
-        self._connection_length = connection.length
+        self._connection_length = config.length
+        self._end_plate_thickness = end_plate.t # Simplified: get thickness directly
         self._loading_condition = getattr(member, "loading_condition", 1)
 
     def _get_attribute(self, obj: Any, potential_names: list[str]) -> float:
@@ -878,11 +840,9 @@ class WebLocalYieldingCalculator:
             f"Object does not have any of the expected attributes: {potential_names}"
         )
 
-    def calculate_capacity(
-        self, thickness_pl: float, resistance_factor: float = 1.0, debug: bool = False
-    ) -> float:
+    def calculate_capacity(self, resistance_factor: float = 1.0, debug: bool = False) -> float:
         """
-        Calculates the design web local yielding strength (φRn).
+        Calculates the design web local yielding strength (phiRn).
         """
         logger = DebugLogger("Web Local Yielding", debug)
         logger.add_input("Yield Strength (Fy)", self._Fy)
@@ -890,13 +850,13 @@ class WebLocalYieldingCalculator:
         logger.add_input("Detailing Distance (k)", self._k)
         logger.add_input("Member Depth (d)", self._d)
         logger.add_input("Connection Length (lb)", self._connection_length)
-        logger.add_input("End Plate Thickness (tpl)", thickness_pl)
-        logger.add_input("Resistance Factor (φ)", resistance_factor)
+        logger.add_input("End Plate Thickness (tpl)", self._end_plate_thickness)
+        logger.add_input("Resistance Factor (phi)", resistance_factor)
         logger.add_input("Loading Condition", self._loading_condition)
 
         clip_dist = 3 / 4 * si.inch
         connection_load_centroid = (
-            self._connection_length / 2 + clip_dist + thickness_pl
+            self._connection_length / 2 + clip_dist + self._end_plate_thickness
         )
         logger.add_calculation("Connection Load Centroid", connection_load_centroid)
 
@@ -915,7 +875,7 @@ class WebLocalYieldingCalculator:
         design_capacity = (
             nominal_capacity * resistance_factor * self._loading_condition
         )
-        logger.add_output("Design Capacity (φRn)", design_capacity)
+        logger.add_output("Design Capacity (phiRn)", design_capacity)
         logger.display()
 
         return design_capacity
@@ -926,13 +886,19 @@ class WebLocalCrippingCalculator:
     with a clear separation between input and calculation debugging.
     """
 
-    def __init__(self, member: Any, connection: Any):
-        """Initializes the calculator by extracting all necessary primitive values."""
+    def __init__(self, member: Any, connection: Connection, end_plate: Plate):
+        """
+        Initializes the calculator by extracting all necessary primitive values.
+        The end_plate thickness is now derived directly from the end_plate object.
+        """
+        config: WeldConfiguration = connection.configuration
+
         self._Fy = member.Fy
         self._tw = self._get_attribute(member, ["tw"])
         self._k = self._get_attribute(member, ["k", "k_det"])
         self._d = self._get_attribute(member, ["d", "depth"])
-        self._connection_length = connection.length
+        self._connection_length = config.length
+        self._end_plate_thickness = end_plate.t # Simplified: get thickness directly
         self._loading_condition = getattr(member, "loading_condition", 1)
         self._E = member.E if hasattr(member, 'E') else 29000 * si.ksi
         self._tf = self._get_attribute(member, ["tf", "thickness_flange"])
@@ -948,11 +914,9 @@ class WebLocalCrippingCalculator:
             f"Object does not have any of the expected attributes: {potential_names}"
         )
 
-    def calculate_capacity(
-        self, thickness_pl: float, resistance_factor: float = 0.75, debug: bool = False
-    ) -> float:
+    def calculate_capacity(self, resistance_factor: float = 0.75, debug: bool = False) -> float:
         """
-        Calculates the design web local crippling strength (φRn) based on AISC J10.3.
+        Calculates the design web local crippling strength (phiRn) based on AISC J10.3.
         """
         logger = DebugLogger("Web Local Crippling", debug)
         logger.add_input("Yield Strength (Fy)", self._Fy)
@@ -961,8 +925,8 @@ class WebLocalCrippingCalculator:
         logger.add_input("Modulus of Elasticity (E)", self._E)
         logger.add_input("Member Depth (d)", self._d)
         logger.add_input("Connection Length (lb)", self._connection_length)
-        logger.add_input("End Plate Thickness (tpl)", thickness_pl)
-        logger.add_input("Resistance Factor (φ)", resistance_factor)
+        logger.add_input("End Plate Thickness (tpl)", self._end_plate_thickness)
+        logger.add_input("Resistance Factor (phi)", resistance_factor)
         logger.add_input("Loading Condition", self._loading_condition)
 
         # Common term in AISC J10.3 equations
@@ -973,7 +937,7 @@ class WebLocalCrippingCalculator:
         # Determine which case of J10.3 applies
         clip_dist = 3 / 4 * si.inch
         connection_load_centroid = (
-            self._connection_length / 2 + clip_dist + thickness_pl
+            self._connection_length / 2 + clip_dist + self._end_plate_thickness
         )
         logger.add_calculation("Connection Load Centroid", connection_load_centroid)
 
@@ -1029,7 +993,7 @@ class WebLocalCrippingCalculator:
         design_capacity = (
             nominal_capacity * resistance_factor * self._loading_condition
         )
-        logger.add_output("Design Capacity (φRn)", design_capacity)
+        logger.add_output("Design Capacity (phiRn)", design_capacity)
         logger.display()
 
         return design_capacity
@@ -1039,15 +1003,12 @@ class ShearYieldingCalculator:
     This class is designed to handle both L and U patterns for block shear calculations.
     """
 
-    def __init__(self, member: Any, connection: Connection, loading_orientation: Literal["Axial", "Shear"], failure_pattern: Literal["L", "U"]):
+    def __init__(self, member: Any, connection: Connection):
         self.member = member
-        if connection.connection_type not in ["bolted", "welded"]:
-            raise ValueError("ShearYieldingCalculator only supports bolted and welded connections.")
-        self.connection: BoltConfiguration = connection.configuration
+        self.connection = connection # Keep the full connection for context
+        self.config: Union[BoltConfiguration, WeldConfiguration] = connection.configuration
         self.connection_type = connection.connection_type
-        self.loading_orientation = loading_orientation
-        self.failure_pattern = failure_pattern
-
+ 
         # Extract common properties
         self.Fy = self.member.Fy
         self.Fu = self.member.Fu
@@ -1072,26 +1033,28 @@ class ShearYieldingCalculator:
 
     def calculate_capacity(self, resistance_factor: float = 1.0, debug: bool = False) -> float:
         """
-        Calculates the design shear yielding strength (φRn).
+        Calculates the design shear yielding strength (phiRn).
         """
-        logger = DebugLogger("Shear Yielding", debug)
+        logger = DebugLogger(f"Shear Yielding ({self.connection.component.name})", debug)
+        
+        gross_area = get_applicable_gross_area(self.member, self.connection)
+        loading_condition = getattr(self.member, "loading_condition", 1)
+        
+        logger.add_input("Member Type", getattr(self.member, "Type", "N/A"))
+        logger.add_input("Connection Type", self.connection_type)
         logger.add_input("Yield Strength (Fy)", self.Fy)
-        logger.add_input("Resistance Factor (φ)", resistance_factor)
+        logger.add_input("Ultimate Strength (Fu)", self.Fu)
+        logger.add_input("Member Thickness (t)", self.thickness)
+        logger.add_input(f"Applicable Gross Area (Ag) for {self.connection.component.name}", gross_area)
+        logger.add_input("Loading Condition (Informational)", loading_condition)
+        logger.add_input("Resistance Factor (phi)", resistance_factor)
 
-        if self.connection_type == "bolted":
-            gross_area = self._calculate_bolted_gross_area()
-            logger.add_input("Gross Area (Ag)", gross_area)
-        elif self.connection_type == "welded":
-            # Placeholder for welded connection logic
-            gross_area = 0 # Replace with actual calculation
-            logger.add_input("Gross Area (Ag)", "N/A for welded connection")
-
-
+        # Per AISC J4.2(a), the nominal strength for shear yielding is 0.6 * Fy * Ag
         nominal_capacity = 0.6 * self.Fy * gross_area
         design_capacity = resistance_factor * nominal_capacity
 
         logger.add_calculation("Nominal Capacity (0.6 * Fy * Ag)", nominal_capacity)
-        logger.add_output("Design Capacity (φRn)", design_capacity)
+        logger.add_output("Design Capacity (phiRn)", design_capacity)
         logger.display()
 
         return design_capacity

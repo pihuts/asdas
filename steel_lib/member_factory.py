@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Type
 from .data_models import Plate, GeometricProperties, Material
 from .si_units import si
 
@@ -13,16 +13,28 @@ class MemberFactory:
     """
 
     @staticmethod
-    def enrich_steelpy_member(steelpy_member: Any) -> Any:
+    def create_steelpy_member(
+        section_class: Type, section_name: str, material: Material, shape_type: str,
+        loading_condition: int = 1,
+    ) -> Any:
         """
-        Enriches a steelpy member object with the GeometricProperties dataclass.
-        The enriched properties are attached to a '.geometry' attribute.
+        Creates a steelpy member, assigns material and loading properties,
+        and enriches it with the GeometricProperties dataclass.
         """
-        if not hasattr(steelpy_member, 'Type'):
-             raise AttributeError("Provided steelpy_member must have a 'Type' attribute.")
+        # 1. Create the basic steelpy section object
+        section = getattr(section_class, section_name)
 
-        steelpy_member.geometry = MemberFactory._create_geometric_properties(steelpy_member)
-        return steelpy_member
+        # 2. Add the necessary material and type properties
+        section.add_property("Fy", material.Fy)
+        section.add_property("Fu", material.Fu)
+        section.add_property("E", material.E)
+        section.add_property("Type", shape_type)
+        section.loading_condition = loading_condition
+
+        # 3. Now that 'Type' exists, enrich it with geometric properties
+        section.geometry = MemberFactory._create_geometric_properties(section)
+        
+        return section
 
     @staticmethod
     def _create_geometric_properties(member: Any) -> GeometricProperties:
