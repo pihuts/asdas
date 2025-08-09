@@ -1,6 +1,29 @@
 from dataclasses import dataclass, field
-from typing import Optional, Any, Literal
+from typing import Optional, Any, Literal, Union
+from enum import Enum
 from .si_units import si
+
+
+class ConnectionComponent(Enum):
+    """Defines the specific part of a member that is being connected."""
+    TOTAL = "total"
+    WEB = "web"
+    FLANGE = "flange"
+    LENGTH = "along_length"
+    WIDTH = "along_width"
+
+
+@dataclass(frozen=True)
+class GeometricProperties:
+    """
+    A container for the pre-calculated gross area (Ag) of a member's various components.
+    This makes the properties easy to access and prevents repeated calculations.
+    """
+    total: Optional[float] = None
+    web: Optional[float] = None
+    flange: Optional[float] = None
+    along_length: Optional[float] = None
+    along_width: Optional[float] = None
 
 
 @dataclass(frozen=True)
@@ -21,14 +44,53 @@ class Plate:
     loading_condition: int = 1
     length: Any = None
     width: Any = None
+    clipping: Any = 0 * si.inch
     Type: str = "Plate"
+    geometry: "GeometricProperties" = field(init=False)
+
+    def __post_init__(self):
+        """
+        Post-initialization hook to automatically calculate and assign the
+        geometric properties for the plate.
+        """
+        self.geometry = GeometricProperties(
+            along_length=self.gross_area_length,
+            along_width=self.gross_area_width,
+            total=self.gross_area_length or self.gross_area_width # Default total
+        )
 
     @classmethod
-    def create_plate_member(
-        cls, t: si.inch, material, loading_condition: int = 1,
+    def from_dimensions(
+        cls,
+        dimensions: "PlateDimensions",
+        material: "Material",
+        loading_condition: int = 1,
+        clipping: Any = 0 * si.inch,
     ) -> "Plate":
-        """Creates a custom Plate member."""
-        return cls(t=t, material=material, loading_condition=loading_condition)
+        """
+        Creates a Plate member from a PlateDimensions object. The geometry
+        is calculated automatically after instantiation.
+        """
+        return cls(
+            t=dimensions.thickness * si.inch,
+            material=material,
+            loading_condition=loading_condition,
+            length=dimensions.vertical * si.inch,
+            width=dimensions.horizontal * si.inch,
+            clipping=clipping,
+        )
+    def set_dimensions(self, dimensions: "PlateDimensions"):
+        """
+        Updates the plate's dimensions from a PlateDimensions object.
+
+        This method allows dimensions to be set or updated after the plate
+        has been instantiated.
+
+        Args:
+            dimensions: A PlateDimensions object containing the geometric properties.
+        """
+        self.length = dimensions.vertical * si.inch
+        self.width = dimensions.horizontal * si.inch
 
     @property
     def Fy(self) -> si.ksi: return self.material.Fy
@@ -36,7 +98,14 @@ class Plate:
     def Fu(self) -> si.ksi: return self.material.Fu
     @property
     def E(self) -> si.ksi: return self.material.E
-
+    @property
+    def gross_area_length(self) :
+        """Calculates the gross area of the plate."""
+        return (self.length - self.clipping) * self.t if self.length else None
+    @property
+    def gross_area_width(self):
+        """Calculates the gross area of the plate."""
+        return (self.width - self.clipping) * self.t if self.width else None
 @dataclass(frozen=True)
 class BoltGrade:
     """Represents the nominal strength properties of a bolt material."""
@@ -53,9 +122,8 @@ class BoltConfiguration:
     edge_distance_vertical: si.inch
     edge_distance_horizontal: si.inch
     bolt_diameter: si.inch
-    bolt_grade: BoltGrade # Link to the BoltGrade object
+    bolt_grade: BoltGrade
     material: Material
-    connection_type: str = "bracing"
     angle: float = 0.0
 from steelpy import aisc
 from typing import Any, Type
@@ -106,3 +174,35 @@ class PlateDimensions:
 class LoadMultipliers:
     shear_force_column_interface: float; shear_force_beam_interface: float
     normal_force_column: float; normal_force_beam: float
+from typing import Union
+
+@dataclass
+class Connection:
+    """
+    A unified connection class that holds the configuration for either a bolted or
+    welded connection, and critically, defines the context of the connection.
+    """
+    connection_type: Literal["bolted", "welded"]
+    component: ConnectionComponent
+    configuration: Union["BoltConfiguration", "WeldConfiguration"]
+    override_Ag: Optional[float] = None  # Allow manual override of gross area
+
+@dataclass
+class ConnectionFactory:
+    """Factory for creating Connection objects."""
+
+    @staticmethod
+    def create_bolted_connection(*args, **kwargs) -> Connection:
+        """Creates a bolted connection."""
+        return Connection(
+            connection_type="bolted",
+            configuration=BoltConfiguration(*args, **kwargs)
+        )
+
+    @staticmethod
+    def create_welded_connection(*args, **kwargs) -> Connection:
+        """Creates a welded connection."""
+        return Connection(
+            connection_type="welded",
+            configuration=WeldConfiguration(*args, **kwargs)
+        )

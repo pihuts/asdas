@@ -195,3 +195,149 @@ final_dimensions = ufm_checker.get_dimensions(debug=True)
 #### 🔗 Related Entries
 - **Previous**: Entry #1
 - **Next**: TBD
+### 📅 2025-08-09 - 05:53 UTC - Entry #3
+
+#### 📋 Task/Request
+> Unify the `bolt` and `weld` connection configurations into a single `Connection` class to streamline calculations.
+
+#### 🎯 Approach
+- **Architectural Plan**: Created a refactoring plan in `docs/connection_refactor_plan.md` to outline the unification strategy.
+- **Unified Connection Class**: Introduced a new `Connection` data class in `steel_lib/data_models.py` to represent both bolted and welded connections. This class uses a `connection_type` attribute and a `Union` to hold either a `BoltConfiguration` or `WeldConfiguration`.
+- **Connection Factory**: Implemented a `ConnectionFactory` in `steel_lib/data_models.py` to simplify the creation of `Connection` objects, following the Factory Pattern from `docs/SUCCESS_PATTERNS.md`.
+- **Refactored Calculators**: Updated all calculator classes in `steel_lib/calculations.py` to accept the new `Connection` class. This involved adding checks for the `connection_type` and accessing the configuration accordingly.
+- **Updated Main Script**: Modified `main.py` to use the new `ConnectionFactory` and pass the appropriate `Connection` or `Configuration` objects to the calculators.
+- **Files Modified**: `steel_lib/data_models.py`, `steel_lib/calculations.py`, `main.py`, `docs/DEVELOPMENT_JOURNAL.md`.
+- **Design Patterns Used**: Factory Pattern, Strategy Pattern (implied by the calculator classes).
+
+#### 🐛 Problems Encountered
+- **Problem**: The `apply_diff` tool failed multiple times when attempting to apply a large number of changes to `steel_lib/calculations.py` and `main.py`.
+  - **Root Cause**: The tool is more reliable with smaller, more targeted changes.
+  - **Solution**: Broke down the changes into smaller, more manageable chunks.
+  - **Prevention**: When applying multiple changes to a file, apply them in smaller, logical groups.
+
+#### ✅ Solution Implemented
+```python
+# In steel_lib/data_models.py
+@dataclass
+class Connection:
+    """A unified connection class that can represent either a bolted or welded connection."""
+    connection_type: Literal["bolted", "welded"]
+    configuration: Union[BoltConfiguration, WeldConfiguration]
+
+@dataclass
+class ConnectionFactory:
+    """Factory for creating Connection objects."""
+
+    @staticmethod
+    def create_bolted_connection(*args, **kwargs) -> Connection:
+        """Creates a bolted connection."""
+        return Connection(
+            connection_type="bolted",
+            configuration=BoltConfiguration(*args, **kwargs)
+        )
+
+    @staticmethod
+    def create_welded_connection(*args, **kwargs) -> Connection:
+        """Creates a welded connection."""
+        return Connection(
+            connection_type="welded",
+            configuration=WeldConfiguration(*args, **kwargs)
+        )
+
+# In steel_lib/calculations.py
+class BoltShearCalculator:
+    def __init__(self, connection: Connection):
+        if connection.connection_type != "bolted":
+            raise ValueError("BoltShearCalculator only supports bolted connections.")
+        
+        self.connection: BoltConfiguration = connection.configuration
+        # ...
+
+# In main.py
+bracing_connection = ConnectionFactory.create_bolted_connection(...)
+```
+
+#### 🔍 Code Review Notes
+- **Complexity**: The introduction of the `Connection` class and `ConnectionFactory` adds a layer of abstraction, but it significantly simplifies the calculator classes and improves the overall structure of the code.
+- **Test Coverage**: N/A.
+- **Performance Impact**: Negligible.
+
+#### 📝 Lessons Learned
+- A unified data model for similar but distinct concepts (like bolted vs. welded connections) can greatly improve code clarity and maintainability.
+- The Factory Pattern is an effective way to simplify the creation of complex objects.
+
+#### 🏷️ Tags
+#refactor #design-pattern #best-practices
+
+#### 🔗 Related Entries
+- **Previous**: Entry #2
+- **Next**: TBD
+---
+
+### 📅 2025-08-09 - 06:37 UTC - Entry #4
+
+#### 📋 Task/Request
+> Refactor the `Plate` data model in `steel_lib/data_models.py` to allow for clean instantiation from a `PlateDimensions` object, and also to allow updating an existing plate with dimensions from a `PlateDimensions` object.
+
+#### 🎯 Approach
+- **Initial Request**: To provide a cleaner way to create a `Plate` when dimensions are known upfront, I implemented the Factory Method pattern by adding a new classmethod, `from_dimensions`, to the `Plate` class. This aligns with other factory patterns already used in the codebase.
+- **Follow-up Request**: To address the user's need to add dimensions to an *existing* plate instance, I added a new instance method, `set_dimensions`.
+- This new method accepts a `PlateDimensions` object and updates the `length` and `width` attributes of the plate instance, providing a clear and explicit API for applying dimensions after the object has been created.
+- **Files modified**: `steel_lib/data_models.py`, `docs/DEVELOPMENT_JOURNAL.md`
+- **Design patterns used**: Factory Method
+
+#### 🐛 Problems Encountered
+- **Problem**: The `insert_content` tool repeatedly introduced indentation errors when adding new methods to the `Plate` class.
+  - **Root Cause**: The tool did not correctly calculate the indentation level for the new code block within the existing class structure.
+  - **Solution**: After each failed insertion, I used `read_file` to get the current state of the file and then used `apply_diff` to manually correct the indentation.
+  - **Prevention**: Be cautious when using `insert_content` for nested code blocks. It may be more reliable to use `apply_diff` for such changes to ensure correct formatting from the start.
+
+#### ✅ Solution Implemented
+```python
+# In steel_lib/data_models.py
+
+@dataclass
+class Plate:
+    # ... existing attributes ...
+
+    @classmethod
+    def from_dimensions(
+        cls,
+        dimensions: "PlateDimensions",
+        material: "Material",
+        loading_condition: int = 1,
+        clipping: Any = 0 * si.inch,
+    ) -> "Plate":
+        """Creates a Plate member from a PlateDimensions object."""
+        return cls(
+            t=dimensions.thickness * si.inch,
+            material=material,
+            loading_condition=loading_condition,
+            length=dimensions.vertical * si.inch,
+            width=dimensions.horizontal * si.inch,
+            clipping=clipping,
+        )
+
+    def set_dimensions(self, dimensions: "PlateDimensions"):
+        """Updates the plate's dimensions from a PlateDimensions object."""
+        self.length = dimensions.vertical * si.inch
+        self.width = dimensions.horizontal * si.inch
+
+    # ... existing properties ...
+```
+
+#### 🔍 Code Review Notes
+- **Complexity**: Low. The changes add functionality without significantly increasing the complexity of the `Plate` class.
+- **Test Coverage**: N/A.
+- **Performance Impact**: Negligible.
+
+#### 📝 Lessons Learned
+- Combining the Factory Method pattern (for creation) with well-named instance methods (for modification) provides a flexible and intuitive API.
+- It's important to verify the output of code generation tools, as they can sometimes introduce subtle formatting errors that need correction.
+
+#### 🏷️ Tags
+#refactor #feature #api-design #datamodel
+
+#### 🔗 Related Entries
+- **Previous**: Entry #3
+- **Next**: TBD

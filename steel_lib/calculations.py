@@ -8,13 +8,100 @@ from .data_models import (
     PlateDimensions,
     LoadMultipliers,
     WeldConfiguration,
+    Connection,
+    ConnectionComponent,
 )
 from .debugging import DebugLogger
 
-
-
 # Define a type hint for numbers for clarity
 Numeric = Union[int, float]
+
+
+def get_applicable_gross_area(member: Any, connection: Connection) -> float:
+    """
+    Determines the applicable gross area (Ag) based on the connection context.
+
+    This function acts as the single source of truth for area selection. It prioritizes
+    a manual override from the connection object, otherwise it uses the connection's
+    specified component to look up the pre-calculated area from the member's
+    geometry.
+
+    Args:
+        member (Any): The enriched member object, which must have a `.geometry` attribute.
+        connection (Connection): The connection object, which provides the context.
+
+    Returns:
+        float: The applicable gross area for the calculation.
+
+    Raises:
+        AttributeError: If the member is missing the `.geometry` attribute or the
+                        required pre-calculated area within it.
+        ValueError: If the specified connection component does not have a corresponding
+                    area in the member's geometry.
+    """
+    # 1. Prioritize the manual override if it exists
+    if connection.override_Ag is not None:
+        return connection.override_Ag
+
+    # 2. Check for the mandatory geometry attribute on the member
+    if not hasattr(member, 'geometry'):
+        raise AttributeError("The provided 'member' object must be enriched with a '.geometry' attribute.")
+
+    # 3. Look up the area based on the connection component
+    component_name = connection.component.value
+    applicable_area = getattr(member.geometry, component_name, None)
+
+    if applicable_area is None:
+        raise ValueError(
+            f"The area for component '{component_name}' is not available in the "
+            f"member's geometry. Available areas: {member.geometry}"
+        )
+
+    return applicable_area
+
+
+def get_applicable_thickness(member: Any, connection: Connection) -> float:
+    """
+    Determines the applicable thickness based on the connection context.
+    This ensures that calculations like net area are based on the correct
+    thickness for the connected part (e.g., web vs. flange).
+
+    Args:
+        member (Any): The enriched member object.
+        connection (Connection): The connection object providing context.
+
+    Returns:
+        float: The applicable thickness for the calculation.
+
+    Raises:
+        AttributeError: If the member lacks the required thickness attribute
+                        (e.g., 'tw' for a web connection).
+    """
+    component = connection.component
+    thickness = 0.0
+
+    if component == ConnectionComponent.WEB:
+        if not hasattr(member, 'tw'): raise AttributeError("Member lacks 'tw' for web thickness.")
+        thickness = member.tw
+    elif component == ConnectionComponent.FLANGE:
+        if not hasattr(member, 'tf'): raise AttributeError("Member lacks 'tf' for flange thickness.")
+        thickness = member.tf
+    elif component in [ConnectionComponent.TOTAL, ConnectionComponent.LENGTH, ConnectionComponent.WIDTH]:
+        # For plates or total sections, 't' is the primary attribute.
+        # Fallback to 'tw' for other section types where 't' isn't defined.
+        if hasattr(member, 't'):
+            thickness = member.t
+        elif hasattr(member, 'tw'):
+            thickness = member.tw # A reasonable default for non-plate members
+        else:
+            raise AttributeError("Member has no recognizable thickness attribute ('t' or 'tw').")
+    else:
+        raise ValueError(f"Unknown connection component '{component}' for thickness lookup.")
+
+    # Ensure units are applied if it's a raw number
+    if isinstance(thickness, (int, float)) and not hasattr(thickness, 'units'):
+        return thickness * si.inch
+    return thickness
 
 
 def round_to_interval(number: Numeric, interval: Numeric) -> Numeric:
@@ -43,11 +130,14 @@ class BoltShearCalculator:
     """
     Calculates the shear strength of a single bolt based on its properties.
     """
-    def __init__(self, connection: BoltConfiguration):
+    def __init__(self, connection: Connection):
         """
         Initializes the calculator with the connection configuration.
         """
-        self.connection = connection
+        if connection.connection_type != "bolted":
+            raise ValueError("BoltShearCalculator only supports bolted connections.")
+        
+        self.connection: BoltConfiguration = connection.configuration
         self.bolt_diameter = self.connection.bolt_diameter
         self.bolt_area = self._calculate_bolt_area()
         # Automatically get the nominal shear stress from the bolt grade
@@ -114,10 +204,11 @@ class TensileYieldingCalculator:
     """
     Calculates the tensile yielding capacity of a member.
     """
-    def __init__(self, member: Any):
+    def __init__(self, member: Any, connection: Connection):
         self.member = member
+        self.connection = connection
         self.Fy = self.member.Fy
-        self.Ag = self.member.area
+        self.Ag = get_applicable_gross_area(member, connection)
         self.loading_condition = getattr(self.member, 'loading_condition', 1)
 
     def calculate_capacity(self, resistance_factor: float = 0.9, debug: bool = False) -> float:
@@ -127,9 +218,9 @@ class TensileYieldingCalculator:
         nominal_strength = self.Fy * self.Ag
         design_strength = resistance_factor * nominal_strength * self.loading_condition
 
-        logger = DebugLogger("Tensile Yielding", debug)
+        logger = DebugLogger(f"Tensile Yielding ({self.connection.component.name})", debug)
         logger.add_input("Yield Strength (Fy)", self.Fy)
-        logger.add_input("Gross Area (Ag)", self.Ag)
+        logger.add_input(f"Applicable Gross Area (Ag) for {self.connection.component.name}", self.Ag)
         logger.add_input("Loading Condition", self.loading_condition)
         logger.add_input("Resistance Factor (φ)", resistance_factor)
         logger.add_calculation("Nominal Strength (Rn = Fy * Ag)", nominal_strength)
@@ -142,9 +233,12 @@ class TensileRuptureCalculator:
     """
     Calculates the tensile rupture capacity of a member.
     """
-    def __init__(self, member: Any, connection: BoltConfiguration):
+    def __init__(self, member: Any, connection: Connection):
+        if connection.connection_type != "bolted":
+            raise ValueError("TensileRuptureCalculator only supports bolted connections.")
         self.member = member
         self.connection = connection
+        self.bolt_config: BoltConfiguration = connection.configuration
         self.Fu = self.member.Fu
         self.loading_condition = getattr(self.member, 'loading_condition', 1)
 
@@ -152,16 +246,22 @@ class TensileRuptureCalculator:
         return 1 - x_bar / l
 
     def _calculate_anet_area(self):
-        t = self.member.t
-        S_c = self.connection.column_spacing
-        N_c = self.connection.n_columns
-        dbolt = self.connection.bolt_diameter
+        t = get_applicable_thickness(self.member, self.connection)
+        S_c = self.bolt_config.column_spacing
+        N_c = self.bolt_config.n_columns
+        dbolt = self.bolt_config.bolt_diameter
         l = S_c * (N_c - 1)
-        x_bar = self.member.x
+        
+        # For a W-section's web or flange, or other symmetric connections, x_bar is 0.
+        # It is non-zero for asymmetric sections like angles.
+        x_bar = 0
+        if self.connection.component == ConnectionComponent.TOTAL and hasattr(self.member, 'x'):
+            x_bar = self.member.x
+        
         Ubs = self._ubs_angle(x_bar=x_bar, l=l)
-        Ag = self.member.area
+        Ag = get_applicable_gross_area(self.member, self.connection)
         dhole = dbolt + (1/8) * si.inch
-        An = Ag - dhole * self.connection.n_rows * t
+        An = Ag - dhole * self.bolt_config.n_rows * t
         return An * Ubs, Ubs
 
     def calculate_capacity(self, resistance_factor: float = 0.75, debug: bool = False) -> float:
@@ -172,9 +272,9 @@ class TensileRuptureCalculator:
         nominal_strength = self.Fu * An
         design_strength = resistance_factor * nominal_strength * self.loading_condition
 
-        logger = DebugLogger("Tensile Rupture", debug)
+        logger = DebugLogger(f"Tensile Rupture ({self.connection.component.name})", debug)
         logger.add_input("Ultimate Strength (Fu)", self.Fu)
-        logger.add_input("Net Area (An)", An)
+        logger.add_input(f"Net Area (An) for {self.connection.component.name}", An)
         logger.add_input("Shear Lag Factor (Ubs)", Ubs)
         logger.add_input("Loading Condition", self.loading_condition)
         logger.add_input("Resistance Factor (φ)", resistance_factor)
@@ -194,13 +294,15 @@ class BlockShearCalculator:
     def __init__(
         self,
         member: MemberType,
-        connection: BoltConfiguration,
+        connection: Connection,
         loading_orientation: LoadingOrientation,
         loading_condition: int = 1,
         thickness: float = None,
     ):
         self.member = member
-        self.connection = connection
+        if connection.connection_type != "bolted":
+            raise ValueError("BlockShearCalculator only supports bolted connections.")
+        self.connection: BoltConfiguration = connection.configuration
         self.loading_orientation = loading_orientation
         self.loading_condition = loading_condition
 
@@ -298,9 +400,11 @@ class ConnectionCapacityCalculator:
     Calculates the governing bolt capacity for an entire connection, considering
     bolt shear and bolt bearing/tearout for inner and outer bolts.
     """
-    def __init__(self, member: Any, connection: BoltConfiguration, loading_orientation: Literal["Axial", "Shear"]):
+    def __init__(self, member: Any, connection: Connection, loading_orientation: Literal["Axial", "Shear"]):
         self.member = member
-        self.connection = connection
+        if connection.connection_type != "bolted":
+            raise ValueError("ConnectionCapacityCalculator only supports bolted connections.")
+        self.connection: BoltConfiguration = connection.configuration
         self.loading_orientation = loading_orientation
 
         # Extract common properties
@@ -357,8 +461,10 @@ class ConnectionCapacityCalculator:
         Calculates the total design capacity of the bolted connection.
         """
         # 1. Get the shear capacity of a single bolt (this is an upper limit)
-        shear_checker = BoltShearCalculator(self.connection)
-        bolt_shear_strength = shear_checker.calculate_capacity(number_of_shear_planes, resistance_factor=0.75) # Use nominal for comparison
+        # Create a new Connection object to pass to the shear checker
+        shear_connection = Connection(connection_type="bolted", configuration=self.connection)
+        shear_checker = BoltShearCalculator(shear_connection)
+        bolt_shear_strength = shear_checker.calculate_capacity_fnv(number_of_shear_planes, resistance_factor=0.75) # Use nominal for comparison
 
         # 2. Calculate clear distances
         lc_in = self._calculate_lc_inner()
@@ -413,10 +519,12 @@ class TensileYieldWhitmore:
     Calculates the tensile yielding capacity based on the Whitmore section.
     """
 
-    def __init__(self, member: Any, connection: BoltConfiguration):
+    def __init__(self, member: Any, connection: Connection):
         """Initializes the calculator with the member and connection objects."""
         self.member = member
-        self.connection = connection
+        if connection.connection_type != "bolted":
+            raise ValueError("TensileYieldWhitmore only supports bolted connections.")
+        self.connection: BoltConfiguration = connection.configuration
         self.Fy = self.member.Fy
         self.loading_condition = getattr(self.member, "loading_condition", 1)
         self.n_cols = self.connection.n_columns
@@ -482,10 +590,12 @@ class CompressionBucklingCalculator:
     Calculates the compression buckling capacity of a member.
     """
 
-    def __init__(self, member: Any, connection: BoltConfiguration):
+    def __init__(self, member: Any, connection: Connection):
         """Initializes the calculator with the member and connection objects."""
         self.member = member
-        self.connection = connection
+        if connection.connection_type != "bolted":
+            raise ValueError("CompressionBucklingCalculator only supports bolted connections.")
+        self.connection: BoltConfiguration = connection.configuration
         self.connection_type = self.connection.connection_type
         self.Fy = self.member.Fy
         self.t = self._get_member_thickness()
@@ -923,3 +1033,66 @@ class WebLocalCrippingCalculator:
         logger.display()
 
         return design_capacity
+class ShearYieldingCalculator:
+    """
+    Calculates the shear yielding capacity of a member based on AISC Specification J3.2.
+    This class is designed to handle both L and U patterns for block shear calculations.
+    """
+
+    def __init__(self, member: Any, connection: Connection, loading_orientation: Literal["Axial", "Shear"], failure_pattern: Literal["L", "U"]):
+        self.member = member
+        if connection.connection_type not in ["bolted", "welded"]:
+            raise ValueError("ShearYieldingCalculator only supports bolted and welded connections.")
+        self.connection: BoltConfiguration = connection.configuration
+        self.connection_type = connection.connection_type
+        self.loading_orientation = loading_orientation
+        self.failure_pattern = failure_pattern
+
+        # Extract common properties
+        self.Fy = self.member.Fy
+        self.Fu = self.member.Fu
+        self.thickness = self._get_member_thickness()
+
+
+    def _get_member_thickness(self) -> float:
+        """Determines thickness from various member types and ensures it has units."""
+        if hasattr(self.member, "t"):
+            t_val = self.member.t
+            if hasattr(t_val, 'units'):
+                return t_val
+            if isinstance(t_val, (int, float)):
+                return t_val * si.inch
+            return t_val
+        elif hasattr(self.member, "tw"):
+            tw_val = self.member.tw
+            if isinstance(tw_val, (int, float)):
+                return tw_val * si.inch
+            return tw_val
+        raise AttributeError("Member does not have a recognizable thickness attribute.")
+
+    def calculate_capacity(self, resistance_factor: float = 1.0, debug: bool = False) -> float:
+        """
+        Calculates the design shear yielding strength (φRn).
+        """
+        logger = DebugLogger("Shear Yielding", debug)
+        logger.add_input("Yield Strength (Fy)", self.Fy)
+        logger.add_input("Resistance Factor (φ)", resistance_factor)
+
+        if self.connection_type == "bolted":
+            gross_area = self._calculate_bolted_gross_area()
+            logger.add_input("Gross Area (Ag)", gross_area)
+        elif self.connection_type == "welded":
+            # Placeholder for welded connection logic
+            gross_area = 0 # Replace with actual calculation
+            logger.add_input("Gross Area (Ag)", "N/A for welded connection")
+
+
+        nominal_capacity = 0.6 * self.Fy * gross_area
+        design_capacity = resistance_factor * nominal_capacity
+
+        logger.add_calculation("Nominal Capacity (0.6 * Fy * Ag)", nominal_capacity)
+        logger.add_output("Design Capacity (φRn)", design_capacity)
+        logger.display()
+
+        return design_capacity
+

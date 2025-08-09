@@ -17,6 +17,15 @@ Before writing any code, you MUST perform the following checks:
 *   **Success Patterns**: Review `docs/SUCCESS_PATTERNS.md` to apply established best practices.
 *   **Package Research**: If the task involves a new package, you MUST first consult the `research/` directory as per the [Package Research & Integration](#-package-research--integration) guidelines.
 
+### 2.5. Handling "Suggest an Idea" Requests
+If the user asks for a suggestion or an idea on how to implement a task, you MUST NOT proceed directly to a single implementation plan. Instead, you must:
+
+1.  **Propose Multiple Options**: Present at least two distinct approaches to solving the task.
+2.  **Analyze Pros and Cons**: For each option, provide a clear list of pros and cons.
+3.  **Ask for a Decision**: Conclude by asking the user to choose which option to proceed with.
+
+This should be presented in a new `#### 💡 Options Analysis` section within the response template, before the `Implementation Plan`.
+
 ### 3. Adhere to the Response Template
 Structure your entire response according to this template.
 
@@ -29,6 +38,16 @@ Structure your entire response according to this template.
 *   **Common Problems Review**: [Note on relevant patterns checked, or "No relevant patterns found."]
 *   **Success Patterns Review**: [Note on patterns to be applied, or "No relevant patterns to apply."]
 *   **Package Research Check**: [e.g., "Consulted `research/steelpy_README_LLM.md` for usage patterns." or "Not applicable."]
+
+#### 💡 Options Analysis
+*   **Option 1**: [Description of the first option]
+    *   **Pros**: [List of advantages]
+    *   **Cons**: [List of disadvantages]
+*   **Option 2**: [Description of the second option]
+    *   **Pros**: [List of advantages]
+    *   **Cons**: [List of disadvantages]
+*   **Recommendation**: [Optional: Suggest the best option and why]
+*   **Action**: Please choose which option you would like me to implement.
 
 #### 🎯 Implementation Plan
 1.  **Step 1**: [Description of the first step]

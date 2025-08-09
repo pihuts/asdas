@@ -4,10 +4,9 @@ from steelpy import aisc
 
 from steel_lib.data_models import (
     Plate,
-    BoltConfiguration,
     SteelpyMemberFactory,
-    WeldConfiguration,
     PlateDimensions,
+    ConnectionFactory,
 )
 from steel_lib.materials import MATERIALS, BOLT_GRADES, WELD_ELECTRODES
 from steel_lib.calculations import (
@@ -23,6 +22,7 @@ from steel_lib.calculations import (
     PlateTensileYieldingCalculator,
     WebLocalYieldingCalculator,
     WebLocalCrippingCalculator,
+    ShearYieldingCalculator,
 )
 
 # Set up the unit system
@@ -32,11 +32,12 @@ from steel_lib.calculations import (
 # Gusset Plate for Bracing Connection
 gusset_plate_bracing = Plate.create_plate_member(
     t=1 * si.inch,
-    material=MATERIALS["a572_gr50"]
+    material=MATERIALS["a572_gr50"],
+    clipping=3/4 * si.inch,  # Optional clipping
 )
 
 # Bracing Connection Bolt Configuration
-bracing_connection = BoltConfiguration(
+bracing_connection = ConnectionFactory.create_bolted_connection(
     row_spacing=3.0 * si.inch,
     column_spacing=3.0 * si.inch,
     n_rows=2,
@@ -57,7 +58,7 @@ end_plate_column = Plate.create_plate_member(
 )
 
 # Column to End Plate Connection
-column_endplate_connection = BoltConfiguration(
+column_endplate_connection = ConnectionFactory.create_bolted_connection(
     row_spacing=3.0 * si.inch,
     column_spacing=3.0 * si.inch,
     n_rows=7,
@@ -68,9 +69,8 @@ column_endplate_connection = BoltConfiguration(
     bolt_grade=BOLT_GRADES["a490_x"],
     material=MATERIALS["a572_gr50"],
     connection_type="bracing",
-    angle=47.2 * math.pi / 180
 )
-column_gusset_connection = BoltConfiguration(
+column_gusset_connection = ConnectionFactory.create_bolted_connection(
     row_spacing=3.0 * si.inch,
     column_spacing=3.0 * si.inch,
     n_rows=2,
@@ -97,7 +97,7 @@ support = SteelpyMemberFactory.create_steelpy_member(
 )
 
 # Weld Configuration
-gusset_weld = WeldConfiguration(
+gusset_weld = ConnectionFactory.create_welded_connection(
     weld_size=0.3125 * si.inch,  # 5/16"
     length=31.50 * si.inch,
     electrode=WELD_ELECTRODES["e70xx"]
@@ -114,7 +114,7 @@ ufm_checker = UFMCalculator(
     beam=beam,
     support=support,
     endplate=end_plate_column,
-    connection=column_endplate_connection
+    connection=column_endplate_connection.configuration
 )
 final_dimensions = ufm_checker.get_dimensions(debug=True)
 final_multipliers = ufm_checker.get_loads_multipliers(debug=True)
@@ -153,7 +153,7 @@ except ValueError as e:
 
 # e) Web Local Yielding
 print("\n5. Web Local Yielding Calculator...")
-web_yield_checker = WebLocalYieldingCalculator(beam, gusset_weld)
+web_yield_checker = WebLocalYieldingCalculator(beam, gusset_weld.configuration)
 web_yield_capacity = web_yield_checker.calculate_capacity(
     thickness_pl=end_plate_column.t,
     debug=True
@@ -161,7 +161,7 @@ web_yield_capacity = web_yield_checker.calculate_capacity(
 print(f"\n   Web Local Yielding Capacity: {web_yield_capacity.to('kip'):.2f}")
 
 print("\n--- All Calculations Complete ---")
-web_local_crippling_checker = WebLocalCrippingCalculator(beam, gusset_weld)
+web_local_crippling_checker = WebLocalCrippingCalculator(beam, gusset_weld.configuration)
 web_crippling_capacity = web_local_crippling_checker.calculate_capacity(
     thickness_pl=end_plate_column.t,
     debug=True
@@ -174,3 +174,17 @@ bolt_shear_checker = BoltShearCalculator( column_gusset_connection )
 bolt_shear_capacity_fnv = bolt_shear_checker.calculate_capacity_fnv(debug=True, number_of_shear_planes=1)
 bolt_shear_capacity_fnt = bolt_shear_checker.calculate_capacity_fnt(debug=True, number_of_shear_planes=1)
 
+
+# g) Shear Yielding
+print("\n7. Shear Yielding Calculator...")
+shear_yielding_checker = ShearYieldingCalculator(
+    member=gusset_plate_bracing,
+    connection=bracing_connection,
+    loading_orientation="Shear",
+    failure_pattern="L"
+)
+shear_yielding_capacity = shear_yielding_checker.calculate_capacity(debug=True)
+print(f"\n   Shear Yielding Capacity: {shear_yielding_capacity:.2f}")
+
+
+print("\nScript finished successfully.")
