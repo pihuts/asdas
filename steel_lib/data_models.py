@@ -204,15 +204,16 @@ class AppliedLoads:
         hub = multipliers.shear_force_beam_interface * design_loads.Pu
         vub = multipliers.normal_force_beam * design_loads.Pu
 
-        # In a future step, we could add Aub and Vu to these results
-        # For example: total_beam_shear = hub + design_loads.Aub
+        # Add Aub and Vu to the column interface forces
+        total_column_shear = vuc + design_loads.Vu
+        total_column_normal = huc + design_loads.Aub
 
         return cls(
             initial_brace_load=design_loads.Pu,
             initial_beam_shear=design_loads.Vu,
             initial_transfer_force=design_loads.Aub,
-            gusset_to_column_shear=vuc,
-            gusset_to_column_normal=huc,
+            gusset_to_column_shear=total_column_shear,
+            gusset_to_column_normal=total_column_normal,
             gusset_to_beam_shear=hub,
             gusset_to_beam_normal=vub,
         )

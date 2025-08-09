@@ -774,9 +774,9 @@ class UFMCalculator:
 
         multipliers = LoadMultipliers(
             shear_force_column_interface=self._beta / self._r,
-            shear_force_beam_interface=self._beam_half_depth / self._r,
+            shear_force_beam_interface=self._alpha / self._r,
             normal_force_column=self._support_half_depth / self._r,
-            normal_force_beam=self._alpha / self._r,
+            normal_force_beam=self._beam_half_depth / self._r,
         )
 
         logger.add_output("Shear Force (Column Interface)", multipliers.shear_force_column_interface)
@@ -816,7 +816,7 @@ class PlateTensileYieldingCalculator:
         debug: bool,
     ) -> float:
         """A private helper to perform the core calculation, avoiding code duplication."""
-        effective_length = gross_length - 0.75 * si.inch
+        effective_length = gross_length
         gross_area = effective_length * self._thickness
         nominal_capacity = self.Fy * gross_area
         design_capacity = (
