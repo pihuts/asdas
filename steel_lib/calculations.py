@@ -170,6 +170,13 @@ class BoltShearCalculator:
 
         logger.display()
         return design_strength
+
+    def check_dcr_fnv(self, demand_force: si.kip, **kwargs) -> float:
+        """Calculates the demand-to-capacity ratio for Fnv."""
+        capacity = self.calculate_capacity_fnv(**kwargs)
+        if capacity == 0: return float('inf')
+        return abs(demand_force / capacity)
+        
     def calculate_capacity_fnt(
         self,
         number_of_shear_planes: int,
@@ -196,6 +203,12 @@ class BoltShearCalculator:
 
         logger.display()
         return design_strength
+
+    def check_dcr_fnt(self, demand_force: si.kip, **kwargs) -> float:
+        """Calculates the demand-to-capacity ratio for Fnt."""
+        capacity = self.calculate_capacity_fnt(**kwargs)
+        if capacity == 0: return float('inf')
+        return abs(demand_force / capacity)
 
 class TensileYieldingCalculator:
     """
@@ -225,6 +238,12 @@ class TensileYieldingCalculator:
         logger.display()
 
         return design_strength
+
+    def check_dcr(self, demand_force: si.kip, **kwargs) -> float:
+        """Calculates the demand-to-capacity ratio."""
+        capacity = self.calculate_capacity(**kwargs)
+        if capacity == 0: return float('inf')
+        return abs(demand_force / capacity)
 
 class TensileRuptureCalculator:
     """
@@ -278,6 +297,12 @@ class TensileRuptureCalculator:
         logger.display()
 
         return design_strength
+
+    def check_dcr(self, demand_force: si.kip, **kwargs) -> float:
+        """Calculates the demand-to-capacity ratio."""
+        capacity = self.calculate_capacity(**kwargs)
+        if capacity == 0: return float('inf')
+        return abs(demand_force / capacity)
 
 MemberType = Any # Use 'Any' for robust compatibility with steelpy objects
 LoadingOrientation = Literal["Axial", "Shear"]
@@ -372,6 +397,12 @@ class BlockShearCalculator:
         logger.display()
 
         return design_capacity
+
+    def check_dcr(self, demand_force: si.kip, **kwargs) -> float:
+        """Calculates the demand-to-capacity ratio."""
+        capacity = self.calculate_capacity(**kwargs)
+        if capacity == 0: return float('inf')
+        return abs(demand_force / capacity)
 
 class ConnectionCapacityCalculator:
     """
@@ -474,6 +505,12 @@ class ConnectionCapacityCalculator:
 
         return design_capacity
 
+    def check_dcr(self, demand_force: si.kip, **kwargs) -> float:
+        """Calculates the demand-to-capacity ratio."""
+        capacity = self.calculate_capacity(**kwargs)
+        if capacity == 0: return float('inf')
+        return abs(demand_force / capacity)
+
 
 class TensileYieldWhitmore:
     """
@@ -543,6 +580,12 @@ class TensileYieldWhitmore:
         logger.display()
         return design_capacity
 
+    def check_dcr(self, demand_force: si.kip, **kwargs) -> float:
+        """Calculates the demand-to-capacity ratio."""
+        capacity = self.calculate_capacity(**kwargs)
+        if capacity == 0: return float('inf')
+        return abs(demand_force / capacity)
+
 
 class CompressionBucklingCalculator:
     """
@@ -606,6 +649,12 @@ class CompressionBucklingCalculator:
             raise ValueError(
                 "Member is not slender enough for compression buckling calculation."
             )
+
+    def check_dcr(self, demand_force: si.kip, **kwargs) -> float:
+        """Calculates the demand-to-capacity ratio."""
+        capacity = self.calculate_capacity(**kwargs)
+        if capacity == 0: return float('inf')
+        return abs(demand_force / capacity)
 
 
 class UFMCalculator:
@@ -786,6 +835,18 @@ class PlateTensileYieldingCalculator:
         logger.display()
         return design_capacity
 
+    def check_dcr_horizontal(self, demand_force: si.kip, **kwargs) -> float:
+        """Calculates the demand-to-capacity ratio for the horizontal path."""
+        capacity = self.calculate_capacity_horizontal(**kwargs)
+        if capacity == 0: return float('inf')
+        return abs(demand_force / capacity)
+
+    def check_dcr_vertical(self, demand_force: si.kip, **kwargs) -> float:
+        """Calculates the demand-to-capacity ratio for the vertical path."""
+        capacity = self.calculate_capacity_vertical(**kwargs)
+        if capacity == 0: return float('inf')
+        return abs(demand_force / capacity)
+
     def calculate_capacity_horizontal(
         self, resistance_factor: float = 0.9, debug: bool = False
     ) -> float:
@@ -879,6 +940,12 @@ class WebLocalYieldingCalculator:
         logger.display()
 
         return design_capacity
+
+    def check_dcr(self, demand_force: si.kip, **kwargs) -> float:
+        """Calculates the demand-to-capacity ratio."""
+        capacity = self.calculate_capacity(**kwargs)
+        if capacity == 0: return float('inf')
+        return abs(demand_force / capacity)
     
 class WebLocalCrippingCalculator:
     """
@@ -997,6 +1064,12 @@ class WebLocalCrippingCalculator:
         logger.display()
 
         return design_capacity
+
+    def check_dcr(self, demand_force: si.kip, **kwargs) -> float:
+        """Calculates the demand-to-capacity ratio."""
+        capacity = self.calculate_capacity(**kwargs)
+        if capacity == 0: return float('inf')
+        return abs(demand_force / capacity)
 class ShearYieldingCalculator:
     """
     Calculates the shear yielding capacity of a member based on AISC Specification J3.2.
@@ -1058,4 +1131,10 @@ class ShearYieldingCalculator:
         logger.display()
 
         return design_capacity
+
+    def check_dcr(self, demand_force: si.kip, **kwargs) -> float:
+        """Calculates the demand-to-capacity ratio."""
+        capacity = self.calculate_capacity(**kwargs)
+        if capacity == 0: return float('inf')
+        return abs(demand_force / capacity)
 

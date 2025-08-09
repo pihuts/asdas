@@ -1,3 +1,4 @@
+from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional, Any, Literal, Union
 from enum import Enum
@@ -162,6 +163,60 @@ class PlateDimensions:
 class LoadMultipliers:
     shear_force_column_interface: float; shear_force_beam_interface: float
     normal_force_column: float; normal_force_beam: float
+
+@dataclass(frozen=True)
+class DesignLoads:
+    """A simple container for the initial load inputs."""
+    Pu: si.kip
+    Vu: si.kip
+    Aub: si.kip
+
+@dataclass(frozen=True)
+class AppliedLoads:
+    """
+    A single, immutable container for all initial and calculated loads.
+    Should be constructed using one of its factory classmethods.
+    """
+    # Initial Design Loads
+    initial_brace_load: si.kip
+    initial_beam_shear: si.kip
+    initial_transfer_force: si.kip
+
+    # Calculated Interface Forces
+    gusset_to_column_shear: si.kip
+    gusset_to_column_normal: si.kip
+    gusset_to_beam_shear: si.kip
+    gusset_to_beam_normal: si.kip
+
+    @classmethod
+    def from_ufm(
+        cls,
+        design_loads: "DesignLoads", # We'll define this helper next
+        multipliers: "LoadMultipliers"
+    ) -> AppliedLoads:
+        """
+        Factory method to create an AppliedLoads object using the
+        Uniform Force Method calculations.
+        """
+        # Perform the load distribution calculations here
+        vuc = multipliers.shear_force_column_interface * design_loads.Pu
+        huc = multipliers.normal_force_column * design_loads.Pu
+        hub = multipliers.shear_force_beam_interface * design_loads.Pu
+        vub = multipliers.normal_force_beam * design_loads.Pu
+
+        # In a future step, we could add Aub and Vu to these results
+        # For example: total_beam_shear = hub + design_loads.Aub
+
+        return cls(
+            initial_brace_load=design_loads.Pu,
+            initial_beam_shear=design_loads.Vu,
+            initial_transfer_force=design_loads.Aub,
+            gusset_to_column_shear=vuc,
+            gusset_to_column_normal=huc,
+            gusset_to_beam_shear=hub,
+            gusset_to_beam_normal=vub,
+        )
+
 from typing import Union
 
 @dataclass

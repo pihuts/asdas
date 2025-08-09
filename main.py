@@ -7,6 +7,8 @@ from steel_lib.data_models import (
     Plate,
     ConnectionFactory,
     ConnectionComponent,
+    DesignLoads,
+    AppliedLoads,
 )
 from steel_lib.materials import MATERIALS, BOLT_GRADES, WELD_ELECTRODES
 from steel_lib.member_factory import MemberFactory
@@ -25,7 +27,7 @@ from steel_lib.calculations import (
     ShearYieldingCalculator,
 )
 
-# --- 1. Define Members and Connections ---
+# --- 1. Define Members, Connections, and Initial Loads ---
 
 try:
     # Create and enrich steelpy members using the consolidated factory
@@ -43,13 +45,13 @@ try:
         shape_type="W"
     )
 
-    # End Plate for Column Connection (Geometry is calculated on creation)
+    # End Plate for Column Connection
     end_plate_column = Plate(
         t=1 * si.inch,
         material=MATERIALS["a572_gr50"]
     )
 
-    # Gusset Plate for Bracing Connection (Geometry is calculated on creation)
+    # Gusset Plate for Bracing Connection
     gusset_plate_bracing = Plate(
         t=1 * si.inch,
         material=MATERIALS["a572_gr50"],
@@ -57,7 +59,6 @@ try:
     )
 
     # --- Define Connection Configurations ---
-
     bracing_connection = ConnectionFactory.create_bolted_connection(
         component=ConnectionComponent.TOTAL,
         row_spacing=3.0 * si.inch,
@@ -86,142 +87,111 @@ try:
         angle=47.2 * math.pi / 180
     )
 
-    column_gusset_connection = ConnectionFactory.create_bolted_connection(
-        component=ConnectionComponent.WEB,
-        row_spacing=3.0 * si.inch,
-        column_spacing=3.0 * si.inch,
-        n_rows=2,
-        n_columns=7,
-        edge_distance_vertical=2 * si.inch,
-        edge_distance_horizontal=1.5 * si.inch,
-        bolt_diameter=7/8 * si.inch,
-        bolt_grade=BOLT_GRADES["a325_x"],
-        material=MATERIALS["a572_gr50"],
+    # --- Define Initial Design Loads (from Design Guide Example 5.1) ---
+    initial_loads = DesignLoads(
+        Pu=840 * si.kip,
+        Vu=50.0 * si.kip,
+        Aub=100 * si.kip
     )
 
-
-    # gusset_weld = ConnectionFactory.create_welded_connection(
-    #     component=ConnectionComponent.TOTAL,
-    #     weld_size=0.3125 * si.inch,
-    #     length=31.50 * si.inch,
-    #     electrode=WELD_ELECTRODES["e70xx"]
-    # )
-
-
     # --- 2. Perform Calculations ---
+    print("--- Starting Steel Connection Design Verification ---")
 
-    print("--- Starting Steel Connection Calculations ---")
-
-    # a) UFM Plate Dimension and Load Multiplier Calculation
-    print("\n1. UFM Calculator...")
+    # a) Calculate UFM Geometric Multipliers
+    print("\n1. Calculating UFM Geometric Multipliers...")
     ufm_checker = UFMCalculator(
         beam=beam,
         support=support,
         endplate=end_plate_column,
-        connection=column_endplate_connection # UFM needs the bolt config
+        connection=column_endplate_connection
     )
-    final_dimensions = ufm_checker.get_dimensions(debug=True)
-    final_multipliers = ufm_checker.get_loads_multipliers(debug=True)
-
-    # Assign calculated dimensions to the plate object for subsequent checks
-    gusset_plate_bracing.set_dimensions(final_dimensions)
-    print(f"\n   Calculated Plate Dimensions: {final_dimensions}")
+    final_multipliers = ufm_checker.get_loads_multipliers()
     print(f"   Calculated Load Multipliers: {final_multipliers}")
 
+    # b) Calculate Applied Loads using the Factory
+    print("\n2. Calculating Applied Interface Forces via Factory...")
+    applied_loads = AppliedLoads.from_ufm(initial_loads, final_multipliers)
+    print(f"   Brace Axial Load: {applied_loads.initial_brace_load:.2f}")
+    print(f"   Gusset-to-Column Shear (Vuc): {applied_loads.gusset_to_column_shear:.2f}")
+    print(f"   Gusset-to-Column Normal (Huc): {applied_loads.gusset_to_column_normal:.2f}")
+    print(f"   Gusset-to-Beam Shear (Hub): {applied_loads.gusset_to_beam_shear:.2f}")
+    print(f"   Gusset-to-Beam Normal (Vub): {applied_loads.gusset_to_beam_normal:.2f}")
+
+    # c) Set Gusset Plate Dimensions
+    final_dimensions = ufm_checker.get_dimensions()
+    gusset_plate_bracing.set_dimensions(final_dimensions)
+    print(f"\n3. Set Gusset Plate Dimensions: {final_dimensions}")
+
+    # Create weld connections now that gusset dimensions are known
     beam_gusset_connection = ConnectionFactory.create_welded_connection(
         component=ConnectionComponent.LENGTH,
         weld_size=0.3125 * si.inch,
-        length = gusset_plate_bracing.length,
+        length=gusset_plate_bracing.length,
         electrode=WELD_ELECTRODES["e70xx"]
     )
     endpl_gusset_connection = ConnectionFactory.create_welded_connection(
         component=ConnectionComponent.WIDTH,
         weld_size=0.3125 * si.inch,
-        length = gusset_plate_bracing.width,
+        length=gusset_plate_bracing.width,
         electrode=WELD_ELECTRODES["e70xx"]
     )
-    
 
-    # b) Plate Tensile Yielding Calculation (based on UFM dimensions)
-    print("\n2. Plate Tensile Yielding Calculator...")
-    plate_yielding_checker = PlateTensileYieldingCalculator(gusset_plate_bracing)
-    horiz_yield = plate_yielding_checker.calculate_capacity_horizontal(debug=True)
-    vert_yield = plate_yielding_checker.calculate_capacity_vertical(debug=True)
-    print(f"\n   Horizontal Yielding Capacity: {horiz_yield:.2f}")
-    print(f"   Vertical Yielding Capacity:   {vert_yield:.2f}")
+    # --- 3. Perform Demand vs. Capacity (DCR) Checks ---
+    print("\n--- Performing DCR Checks ---")
 
-
-    # c) Whitmore Section Tensile Yielding
-    print("\n3. Whitmore Section Tensile Yielding Calculator...")
-    # Whitmore needs the full connection object for context
+    # a) Whitmore Section Tensile Yielding
+    print("\nCHECK: Whitmore Section Tensile Yielding...")
     whitmore_checker = TensileYieldWhitmore(gusset_plate_bracing, bracing_connection)
-    whitmore_capacity = whitmore_checker.calculate_capacity(debug=True)
-    print(f"\n   Whitmore Section Capacity: {whitmore_capacity:.2f}")
+    dcr_whitmore = whitmore_checker.check_dcr(demand_force=applied_loads.initial_brace_load)
+    print(f"   DCR = {dcr_whitmore:.2f} {'(OK)' if dcr_whitmore <= 1.0 else '(FAIL)'}")
 
-
-    # d) Compression Buckling
-    print("\n4. Compression Buckling Calculator...")
-    # Comp Buckling needs the bolt configuration
+    # b) Compression Buckling
+    print("\nCHECK: Gusset Compression Buckling...")
     comp_buckling_checker = CompressionBucklingCalculator(gusset_plate_bracing, bracing_connection)
     try:
-        comp_capacity = comp_buckling_checker.calculate_capacity(debug=True)
-        print(f"\n   Compression Buckling Capacity: {comp_capacity:.2f}")
+        dcr_comp_buckling = comp_buckling_checker.check_dcr(demand_force=applied_loads.initial_brace_load)
+        print(f"   DCR = {dcr_comp_buckling:.2f} {'(OK)' if dcr_comp_buckling <= 1.0 else '(FAIL)'}")
     except ValueError as e:
-        print(f"\n   Compression Buckling Check Failed: {e}")
+        print(f"   CHECK FAILED: {e}")
 
+    # c) Gusset-to-Beam Interface: Shear Yielding
+    print("\nCHECK: Gusset-to-Beam Shear Yielding...")
+    gusset_beam_shear_checker = ShearYieldingCalculator(gusset_plate_bracing, beam_gusset_connection)
+    dcr_gusset_beam_shear = gusset_beam_shear_checker.check_dcr(demand_force=applied_loads.gusset_to_beam_shear)
+    print(f"   DCR = {dcr_gusset_beam_shear:.2f} {'(OK)' if dcr_gusset_beam_shear <= 1.0 else '(FAIL)'}")
 
-    # e) Web Local Yielding (SIMPLIFIED API)
-    print("\n5. Web Local Yielding Calculator...")
-    web_yield_checker = WebLocalYieldingCalculator(
-        member=beam,
-        connection=beam_gusset_connection, # Pass the WeldConfiguration directly
-        end_plate=end_plate_column           # Pass the end plate object
+    # d) Gusset-to-Beam Interface: Tensile Yielding (Normal Force)
+    print("\nCHECK: Gusset-to-Beam Tensile Yielding...")
+    gusset_beam_tensile_checker = PlateTensileYieldingCalculator(gusset_plate_bracing)
+    # Note: The capacity is calculated along the horizontal length of the plate here
+    dcr_gusset_beam_tensile = gusset_beam_tensile_checker.check_dcr_horizontal(demand_force=applied_loads.gusset_to_beam_normal)
+    print(f"   DCR = {dcr_gusset_beam_tensile:.2f} {'(OK)' if dcr_gusset_beam_tensile <= 1.0 else '(FAIL)'}")
+
+    # e) Beam Web Local Yielding
+    print("\nCHECK: Beam Web Local Yielding...")
+    web_yield_checker = WebLocalYieldingCalculator(beam, beam_gusset_connection, end_plate_column)
+    dcr_web_yield = web_yield_checker.check_dcr(demand_force=applied_loads.gusset_to_beam_normal)
+    print(f"   DCR = {dcr_web_yield:.2f} {'(OK)' if dcr_web_yield <= 1.0 else '(FAIL)'}")
+
+    # f) Beam Web Local Crippling
+    print("\nCHECK: Beam Web Local Crippling...")
+    web_crippling_checker = WebLocalCrippingCalculator(beam, beam_gusset_connection, end_plate_column)
+    dcr_web_crippling = web_crippling_checker.check_dcr(demand_force=applied_loads.gusset_to_beam_normal)
+    print(f"   DCR = {dcr_web_crippling:.2f} {'(OK)' if dcr_web_crippling <= 1.0 else '(FAIL)'}")
+
+    # g) Gusset-to-Column Interface: Bolt Shear
+    print("\nCHECK: Gusset-to-Column Bolt Shear...")
+    bolt_shear_checker = BoltShearCalculator(column_endplate_connection)
+    # Check against the shear force component on the column interface
+    dcr_bolt_shear = bolt_shear_checker.check_dcr_fnv(
+        demand_force=applied_loads.gusset_to_column_shear / (column_endplate_connection.configuration.n_rows * column_endplate_connection.configuration.n_columns),
+        number_of_shear_planes=1
     )
-    web_yield_capacity = web_yield_checker.calculate_capacity(debug=True)
-    print(f"\n   Web Local Yielding Capacity: {web_yield_capacity.to('kip'):.2f}")
+    print(f"   DCR (per bolt) = {dcr_bolt_shear:.2f} {'(OK)' if dcr_bolt_shear <= 1.0 else '(FAIL)'}")
 
 
-    # f) Web Local Crippling (SIMPLIFIED API)
-    print("\n6. Web Local Crippling Calculator...")
-    web_local_crippling_checker = WebLocalCrippingCalculator(
-        member=beam,
-        connection=beam_gusset_connection, # Pass the WeldConfiguration directly
-        end_plate=end_plate_column           # Pass the end plate object
-    )
-    web_crippling_capacity = web_local_crippling_checker.calculate_capacity(debug=True)
-    print(f"\n   Web Local Crippling Capacity: {web_crippling_capacity.to('kip'):.2f}")
+    print("\n\nScript finished successfully.")
 
-    # g) Bolt Shear (SIMPLIFIED API)
-    print("\n7. Bolt Shear Calculator...")
-    # Pass the BoltConfiguration directly
-    bolt_shear_checker = BoltShearCalculator(column_gusset_connection)
-    bolt_shear_capacity_fnv = bolt_shear_checker.calculate_capacity_fnv(debug=True, number_of_shear_planes=1)
-    bolt_shear_capacity_fnt = bolt_shear_checker.calculate_capacity_fnt(debug=True, number_of_shear_planes=1)
-    print(f"\n   Bolt Shear Fnv Capacity: {bolt_shear_capacity_fnv.to('kip'):.2f}")
-    print(f"   Bolt Shear Fnt Capacity: {bolt_shear_capacity_fnt.to('kip'):.2f}")
-
-
-    # h) Shear Yielding
-    print("\n8. Shear Yielding Calculator...")
-    shear_yielding_checker = ShearYieldingCalculator(
-        member=gusset_plate_bracing,
-        connection=beam_gusset_connection, # This calculator needs the full connection context
-    )
-    shear_yielding_capacity = shear_yielding_checker.calculate_capacity(debug=True)
-    print(f"\n   Shear Yielding Capacity: {shear_yielding_capacity:.2f}")
-
-
-    print("\n9. Shear Yielding Calculator...")
-    shear_yielding_checker = ShearYieldingCalculator(
-        member=gusset_plate_bracing,
-        connection=endpl_gusset_connection, # This calculator needs the full connection context
-    )
-    shear_yielding_capacity = shear_yielding_checker.calculate_capacity(debug=True)
-    print(f"\n   Shear Yielding Capacity: {shear_yielding_capacity:.2f}")
-
-
-    print("\nScript finished successfully.")
- 
 except Exception as e:
     print("\n--- SCRIPT FAILED WITH AN ERROR ---")
     print(f"Error Type: {type(e).__name__}")
